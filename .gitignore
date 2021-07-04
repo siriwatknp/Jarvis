@@ -1,3 +1,5 @@
+*.secrets.json
+
 # Compiled JavaScript files
 lib/**/*.js
 lib/**/*.js.map
