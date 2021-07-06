@@ -346,10 +346,11 @@ export const trackNpmDownload = functions
          * Add data next column
          */
         if (nextColumnIndex) {
+          const column = COL[nextColumnIndex];
           await sheets.spreadsheets.values.update({
             auth: authClient,
             spreadsheetId: ggSheetId,
-            range: `${trackerSheet?.title}!${COL[nextColumnIndex]}1`,
+            range: `${trackerSheet?.title}!${column}1`,
             valueInputOption: "USER_ENTERED",
             requestBody: {
               values: [
@@ -370,15 +371,15 @@ export const trackNpmDownload = functions
             await sheets.spreadsheets.values.update({
               auth: authClient,
               spreadsheetId: ggSheetId,
-              range: `${summarySheet?.title}!${COL[nextColumnIndex]}1`,
+              range: `${summarySheet?.title}!${column}1`,
               valueInputOption: "USER_ENTERED",
               requestBody: {
                 values: [
                   [formattedNow],
                   ...[...Array(nextRowIndex - 1)].map((_, index) => [
-                    `=SUMIF('${sheetNames.tracker}'!$A2:A,B${index + 2},'${
+                    `=SUMIF('${sheetNames.tracker}'!$A$2:$A,$B${index + 2},'${
                       sheetNames.tracker
-                    }'!$C2:C)`,
+                    }'!${column}$2:${column})`,
                   ]),
                 ],
               },
