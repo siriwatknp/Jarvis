@@ -9,8 +9,12 @@
     "strict": true,
     "target": "es2017",
     "noEmitOnError": false,
-    "baseUrl": "./src"
+    "baseUrl": "./src",
+    "paths": {
+      "api/*": ["api/*"]
+    }
   },
   "compileOnSave": true,
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["node_modules", "lib"]
 }
