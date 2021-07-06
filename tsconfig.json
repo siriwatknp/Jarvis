@@ -3,13 +3,13 @@
     "lib": ["ES6", "DOM"],
     "module": "commonjs",
     "noImplicitReturns": true,
-    "noUnusedLocals": true,
+    "noUnusedLocals": false,
     "outDir": "lib",
     "sourceMap": true,
     "strict": true,
     "target": "es2017",
-    "resolveJsonModule": true,
-    "noEmitOnError": false
+    "noEmitOnError": false,
+    "baseUrl": "./src"
   },
   "compileOnSave": true,
   "include": ["src"]

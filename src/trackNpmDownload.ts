@@ -1,6 +1,7 @@
 import * as functions from "firebase-functions";
 import * as puppeteer from "puppeteer";
 import { google } from "googleapis";
+import { COL } from "api/GoogleSheets";
 
 const sheets = google.sheets("v4");
 
@@ -9,34 +10,6 @@ const NPM_BASE_URL = "https://www.npmjs.com/package";
 const auth = new google.auth.GoogleAuth({
   scopes: "https://www.googleapis.com/auth/spreadsheets",
 });
-
-const COL = [
-  "A",
-  "B",
-  "C",
-  "D",
-  "E",
-  "F",
-  "G",
-  "H",
-  "I",
-  "J",
-  "K",
-  "L",
-  "M",
-  "N",
-  "O",
-  "P",
-  "Q",
-  "R",
-  "S",
-  "T",
-  "U",
-  "W",
-  "X",
-  "Y",
-  "Z",
-];
 
 export const trackNpmDownload = functions
   .region("asia-southeast2")

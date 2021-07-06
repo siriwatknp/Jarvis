@@ -18,8 +18,15 @@ module.exports = {
     project: ["tsconfig.json", "tsconfig.dev.json"],
     sourceType: "module",
   },
+  settings: {
+    "import/resolver": {
+      typescript: {}, // this loads <rootdir>/tsconfig.json to eslint
+    },
+  },
   ignorePatterns: [
     "/lib/**/*", // Ignore built files.
+    "babel.config.js",
+    "jest.config.js",
   ],
   plugins: ["@typescript-eslint", "import"],
   rules: {
