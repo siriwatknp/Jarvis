@@ -1,5 +1,7 @@
 *.secrets.json
 
+src/modules/GrabFood/run.ts
+
 # Compiled JavaScript files
 lib/**/*.js
 lib/**/*.js.map

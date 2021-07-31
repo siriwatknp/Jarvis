@@ -32,5 +32,6 @@ module.exports = {
   rules: {
     // quotes: ["error", "double"],
     "@typescript-eslint/ban-ts-comment": "off",
+    "require-jsdoc": "off",
   },
 };
