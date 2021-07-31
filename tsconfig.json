@@ -11,7 +11,9 @@
     "noEmitOnError": false,
     "baseUrl": "./src",
     "paths": {
-      "api/*": ["api/*"]
+      "api/*": ["api/*"],
+      "modules/*": ["modules/*"],
+      "utils/*": ["utils/*"]
     }
   },
   "compileOnSave": true,
