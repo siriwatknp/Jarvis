@@ -51,6 +51,10 @@ describe("GrabFood Module", () => {
             },
           ],
         },
+        {
+          // no user entered info
+          values: [{}],
+        },
       ])
     ).toEqual([
       {

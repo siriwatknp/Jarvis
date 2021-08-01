@@ -67,15 +67,8 @@ export const pickAMeal = functions
           // take weight into account
           const selectedItem = randomOneItem(shuffle(splitByWeight(data)));
 
-          // send message to slack
-          Slack.sendMessage(
-            `📍 ${selectedItem.restaurant}\n🍽 ${selectedItem.menus
-              .map(({ name }) => name)
-              .join(", ")}`
-          );
-
           await placeOrder({
-            headleass: true,
+            headleass: process.env.NODE_ENV !== "development",
             dryrun: !settings.placeOrderEnabled,
             session: settings.session,
             location: settings.location,
@@ -83,7 +76,6 @@ export const pickAMeal = functions
             menus: selectedItem.menus,
           });
 
-          // Update History sheet
           const now = toDate(new Date(), {
             timeZone: "Asia/Bangkok",
           });
@@ -92,21 +84,31 @@ export const pickAMeal = functions
           }, ${now.getDate()}) + TIME(${now.getHours()}, ${now.getMinutes()}, ${now.getSeconds()})`;
           const nextRowIndex =
             (historySheet?.data?.[0].rowData?.length || 0) + 1;
-          await sheets.spreadsheets.values.update({
-            auth: authClient,
-            spreadsheetId: ggSheetId,
-            range: `${historySheet?.properties?.title}!A${nextRowIndex}`,
-            valueInputOption: "USER_ENTERED",
-            requestBody: {
-              values: [
-                [
-                  formattedNow,
-                  selectedItem.restaurant,
-                  selectedItem.menus.map(({ name }) => name).join(", "),
+
+          await Promise.all([
+            // send message to slack
+            Slack.sendMessage(
+              `😋 \`Place order successful!\`\n📍 ${
+                selectedItem.restaurant
+              }\n🍽 ${selectedItem.menus.map(({ name }) => name).join(", ")}`
+            ),
+            // update History sheet
+            await sheets.spreadsheets.values.update({
+              auth: authClient,
+              spreadsheetId: ggSheetId,
+              range: `${historySheet?.properties?.title}!A${nextRowIndex}`,
+              valueInputOption: "USER_ENTERED",
+              requestBody: {
+                values: [
+                  [
+                    formattedNow,
+                    selectedItem.restaurant,
+                    selectedItem.menus.map(({ name }) => name).join(", "),
+                  ],
                 ],
-              ],
-            },
-          });
+              },
+            }),
+          ]);
 
           response.status(200).send("successful!");
         }
@@ -114,7 +116,7 @@ export const pickAMeal = functions
         throw new Error("`ggSheetId` query param is required.");
       }
     } catch (error) {
-      console.error(error.message);
+      console.error(error);
       await Slack.sendMessage(
         `🚨 Fail to place order - ${error.message || "unknown"}`
       );

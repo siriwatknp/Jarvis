@@ -10,19 +10,24 @@ export interface GrabMenu {
 export function extractOrders(
   grid: any
 ): Array<{ weight: number; restaurant: string; menus: Array<GrabMenu> }> {
-  return grid.map(({ values }: { values: any }) => {
-    return {
-      weight: values?.[0].userEnteredValue?.numberValue,
-      restaurant: values?.[1].userEnteredValue?.stringValue || "",
-      menus: values
-        ? values
-            .slice(2)
-            .map((item: any) =>
-              extractMenu(item.userEnteredValue?.stringValue || "")
-            )
-        : [],
-    };
-  });
+  return grid
+    .filter(
+      ({ values }: { values: any }) =>
+        values[1]?.userEnteredValue && values[2]?.userEnteredValue
+    )
+    .map(({ values }: { values: any }) => {
+      return {
+        weight: values?.[0].userEnteredValue?.numberValue,
+        restaurant: values?.[1].userEnteredValue?.stringValue || "",
+        menus: values
+          ? values
+              .slice(2)
+              .map((item: any) =>
+                extractMenu(item.userEnteredValue?.stringValue || "")
+              )
+          : [],
+      };
+    });
 }
 
 export function extractMenu(menu: string): GrabMenu {
@@ -83,6 +88,7 @@ export async function placeOrder(options: PlaceOrderOptions): Promise<void> {
   );
   if (restaurant) {
     console.info("Found restaurant:", options.restaurant);
+    await page.waitForTimeout(500); // prevent not found, may be the page needs to load something first.
     await restaurant.click();
   } else {
     throw new Error(`Cannot find the restaurant`);
