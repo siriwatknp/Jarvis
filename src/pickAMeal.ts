@@ -1,8 +1,10 @@
 import * as functions from "firebase-functions";
+import { toDate } from "date-fns-tz";
 import { google } from "googleapis";
 import * as Slack from "api/Slack";
-import { extractMenu, placeOrder } from "modules/GrabFood";
+import { placeOrder, extractOrders } from "modules/GrabFood";
 import { shuffle, splitByWeight, randomOneItem } from "utils/shuffle";
+import { getKeyValueMap } from "utils/sheets";
 
 const sheets = google.sheets("v4");
 
@@ -21,6 +23,7 @@ export const pickAMeal = functions
     const sheetNames = {
       orders: "Orders",
       settings: "Settings",
+      history: "History",
     };
     try {
       if (ggSheetId) {
@@ -33,54 +36,76 @@ export const pickAMeal = functions
         const ordersSheet = spreadsheet.data.sheets?.find(
           (s) => s.properties?.title === sheetNames.orders
         );
+        const historySheet = spreadsheet.data.sheets?.find(
+          (s) => s.properties?.title === sheetNames.history
+        );
         const settingsSheet = spreadsheet.data.sheets?.find(
           (s) => s.properties?.title === sheetNames.settings
         );
-        const settings = (
-          settingsSheet?.data?.[0].rowData?.slice(1) || []
-        ).reduce(
-          (result, { values }) => ({
-            ...result,
-            [values?.[0].userEnteredValue?.stringValue || ""]:
-              values?.[1].userEnteredValue?.stringValue,
-          }),
-          {}
-        ) as { session: string; location: string };
+        const settings = getKeyValueMap<{
+          session: string;
+          location: string;
+          placeOrderEnabled: boolean;
+          noRepeatRestaurant: boolean;
+        }>(settingsSheet?.data?.[0].rowData);
 
         const grid = ordersSheet?.data?.[0].rowData;
 
         if (grid) {
           grid.shift(); // remove header
-          const data = grid.map(({ values }) => {
-            return {
-              weight: values?.[0].userEnteredValue?.numberValue,
-              restaurant: values?.[1].userEnteredValue?.stringValue || "",
-              menus: values
-                ? values
-                    .slice(2)
-                    .map((item) =>
-                      extractMenu(item.userEnteredValue?.stringValue || "")
-                    )
-                : [],
-            };
-          });
+          let data = extractOrders(grid);
+
+          if (settings.noRepeatRestaurant) {
+            data = data.filter(
+              ({ restaurant }) =>
+                restaurant !==
+                (historySheet?.data?.[0].rowData || []).slice(-1)[0].values?.[1]
+                  ?.userEnteredValue?.stringValue
+            );
+          }
 
           // take weight into account
           const selectedItem = randomOneItem(shuffle(splitByWeight(data)));
 
           // send message to slack
           Slack.sendMessage(
-            `🍽 ${selectedItem.restaurant} - ${selectedItem.menus
+            `📍 ${selectedItem.restaurant}\n🍽 ${selectedItem.menus
               .map(({ name }) => name)
               .join(", ")}`
           );
 
           await placeOrder({
             headleass: true,
+            dryrun: !settings.placeOrderEnabled,
             session: settings.session,
             location: settings.location,
             restaurant: selectedItem.restaurant,
             menus: selectedItem.menus,
+          });
+
+          // Update History sheet
+          const now = toDate(new Date(), {
+            timeZone: "Asia/Bangkok",
+          });
+          const formattedNow = `=DATE(${now.getFullYear()}, ${
+            now.getMonth() + 1
+          }, ${now.getDate()}) + TIME(${now.getHours()}, ${now.getMinutes()}, ${now.getSeconds()})`;
+          const nextRowIndex =
+            (historySheet?.data?.[0].rowData?.length || 0) + 1;
+          await sheets.spreadsheets.values.update({
+            auth: authClient,
+            spreadsheetId: ggSheetId,
+            range: `${historySheet?.properties?.title}!A${nextRowIndex}`,
+            valueInputOption: "USER_ENTERED",
+            requestBody: {
+              values: [
+                [
+                  formattedNow,
+                  selectedItem.restaurant,
+                  selectedItem.menus.map(({ name }) => name).join(", "),
+                ],
+              ],
+            },
           });
 
           response.status(200).send("successful!");

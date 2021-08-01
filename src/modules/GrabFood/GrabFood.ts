@@ -7,6 +7,24 @@ export interface GrabMenu {
   quantity: number;
 }
 
+export function extractOrders(
+  grid: any
+): Array<{ weight: number; restaurant: string; menus: Array<GrabMenu> }> {
+  return grid.map(({ values }: { values: any }) => {
+    return {
+      weight: values?.[0].userEnteredValue?.numberValue,
+      restaurant: values?.[1].userEnteredValue?.stringValue || "",
+      menus: values
+        ? values
+            .slice(2)
+            .map((item: any) =>
+              extractMenu(item.userEnteredValue?.stringValue || "")
+            )
+        : [],
+    };
+  });
+}
+
 export function extractMenu(menu: string): GrabMenu {
   const lines = menu.split("\n").filter((str) => !!str);
   const name = lines.shift() || "";
@@ -29,6 +47,7 @@ export function extractMenu(menu: string): GrabMenu {
 
 export interface PlaceOrderOptions {
   headleass: boolean;
+  dryrun: boolean;
   session: string;
   location: string;
   restaurant: string;
@@ -148,7 +167,7 @@ export async function placeOrder(options: PlaceOrderOptions): Promise<void> {
   );
   if (reviewOrder) {
     await page.waitForTimeout(300);
-    reviewOrder.click();
+    await reviewOrder.click();
   } else {
     throw new Error("Cannot find `Review Order` button");
   }
@@ -183,8 +202,11 @@ export async function placeOrder(options: PlaceOrderOptions): Promise<void> {
   await page.evaluate(() => window.scroll(0, 800));
   if (checkoutButton) {
     console.info("Placing order...");
-    // await page.evaluate(() => window.alert("🍽 Congrat! Enjoy your food."));
-    console.log("🍽 Congrat! Enjoy your food.");
+    if (options.dryrun) {
+      console.log("🍽 Congrat! Enjoy your food.");
+    } else {
+      await checkoutButton.click();
+    }
   }
 
   await browser.close();
