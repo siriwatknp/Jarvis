@@ -16,6 +16,15 @@ export const pickAMeal = functions
   .region("asia-southeast2")
   .runWith({ memory: "1GB" })
   .https.onRequest(async (request, response) => {
+    const { headers } = request;
+    if (
+      process.env.NODE_ENV !== "development" &&
+      headers.authorization !==
+        `Basic ${(functions.config().secrets || {}).pickameal}`
+    ) {
+      response.status(401).send("❌ Unauthorized!");
+      return;
+    }
     const { ggSheetId } = request.query as {
       ggSheetId?: string;
     };
