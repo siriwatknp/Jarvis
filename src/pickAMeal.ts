@@ -18,9 +18,8 @@ export const pickAMeal = functions
   .https.onRequest(async (request, response) => {
     const { headers } = request;
     if (
-      process.env.NODE_ENV !== "development" &&
       headers.authorization !==
-        `Basic ${(functions.config().secrets || {}).pickameal}`
+      `Basic ${functions.config().authorization.pickameal}`
     ) {
       response.status(401).send("❌ Unauthorized!");
       return;
