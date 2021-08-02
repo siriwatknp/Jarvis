@@ -3,7 +3,7 @@ import admin from "firebase-admin";
 
 admin.initializeApp();
 
-export const linkWebhook = functions
+export const lineWebhook = functions
   .region("asia-southeast2")
   .https.onRequest(async (request) => {
     const event = request.body.events[0];
