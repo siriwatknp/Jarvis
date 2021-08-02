@@ -1,10 +1,14 @@
 import * as functions from "firebase-functions";
+import admin from "firebase-admin";
 import { toDate } from "date-fns-tz";
 import { google } from "googleapis";
 import * as Slack from "api/Slack";
+import * as Line from "modules/Line";
 import { placeOrder, extractOrders } from "modules/GrabFood";
 import { shuffle, splitByWeight, randomOneItem } from "utils/shuffle";
 import { getKeyValueMap } from "utils/sheets";
+
+admin.initializeApp();
 
 const sheets = google.sheets("v4");
 
@@ -93,15 +97,14 @@ export const pickAMeal = functions
           const nextRowIndex =
             (historySheet?.data?.[0].rowData?.length || 0) + 1;
 
+          const message = `😋 \`Place order successful!\`\n📍 ${
+            selectedItem.restaurant
+          }\n🍽 ${selectedItem.menus.map(({ name }) => name).join(", ")}`;
           await Promise.all([
-            // send message to slack
-            Slack.sendMessage(
-              `😋 \`Place order successful!\`\n📍 ${
-                selectedItem.restaurant
-              }\n🍽 ${selectedItem.menus.map(({ name }) => name).join(", ")}`
-            ),
+            Slack.sendMessage(message),
+            Line.sendMessageToFollowers(message),
             // update History sheet
-            await sheets.spreadsheets.values.update({
+            sheets.spreadsheets.values.update({
               auth: authClient,
               spreadsheetId: ggSheetId,
               range: `${historySheet?.properties?.title}!A${nextRowIndex}`,
@@ -125,9 +128,11 @@ export const pickAMeal = functions
       }
     } catch (error) {
       console.error(error);
-      await Slack.sendMessage(
-        `🚨 Fail to place order - ${error.message || "unknown"}`
-      );
+      const message = `🚨 Fail to place order - ${error.message || "unknown"}`;
+      await Promise.all([
+        Slack.sendMessage(message),
+        Line.sendMessageToFollowers(message),
+      ]);
       response.status(400).send(error.message);
     }
   });

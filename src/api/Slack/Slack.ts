@@ -2,7 +2,7 @@ import * as functions from "firebase-functions";
 import fetch from "node-fetch";
 
 export async function sendMessage(text: string) {
-  await fetch(functions.config().slack.url, {
+  return await fetch(functions.config().slack.url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
