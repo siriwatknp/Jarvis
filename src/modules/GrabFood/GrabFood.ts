@@ -95,73 +95,73 @@ export async function placeOrder(options: PlaceOrderOptions): Promise<void> {
   }
 
   console.info("Finding menus...");
-  await Promise.all(
-    options.menus.map(async (menu) => {
-      await page.waitForXPath(`//h3[contains(., '${menu.name}')]`);
-      const [menuHandle] = await page.$x(`//h3[contains(., '${menu.name}')]`);
-      if (menuHandle) {
-        console.info("Found menu:", menu.name);
-        await menuHandle.click();
-      } else {
-        throw new Error(`Cannot find the menu`);
+  await options.menus.reduce(async (previous, menu, index) => {
+    await previous;
+    await page.waitForXPath(`//h3[contains(., '${menu.name}')]`);
+    const [menuHandle] = await page.$x(`//h3[contains(., '${menu.name}')]`);
+    if (menuHandle) {
+      if (index > 0) {
+        await page.waitForTimeout(200); // Wait for the drawer to fully closed.
       }
+      console.info("Found menu:", menu.name);
+      await menuHandle.click();
+    } else {
+      throw new Error(`Cannot find the menu`);
+    }
 
-      // Drawer open
-      await page.waitForXPath(`//h5[contains(., '${menu.name}')]`, {
-        visible: true,
-      });
-      // Choose options
-      await Promise.all(
-        menu.options.map(async (opt) => {
-          console.info("Picking option:", opt);
-          return await page.evaluate((optEval) => {
-            const labels = document.querySelectorAll(
-              'label[class*="inputItem"]'
-            );
-            labels.forEach((label) => {
-              if (label.textContent?.startsWith(optEval)) {
-                (label as HTMLElement).click();
-              }
-            });
-          }, opt);
-        })
-      );
-
-      // Note
-      if (menu.note) {
-        console.info("Filling note...");
-        await page.type(".ant-drawer-open textarea", menu.note);
-      }
-
-      // Quantity
-      await page.waitForXPath("//a[contains(@class, 'quantityButton')]");
-      console.info("Adjusting quantity to:", menu.quantity);
-      await page.evaluate((menuEval) => {
-        const buttons = document.querySelectorAll(
-          'div[class*="ant-drawer-open"] a[class*="quantityButton"]'
-        );
-        const increase = buttons[1] as HTMLButtonElement;
-        if (increase && menuEval.quantity > 1) {
-          [...Array(menuEval.quantity - 1)].forEach(() => {
-            increase.click();
+    // Drawer open
+    await page.waitForXPath(`//h5[contains(., '${menu.name}')]`, {
+      visible: true,
+    });
+    // Choose options
+    await Promise.all(
+      menu.options.map(async (opt) => {
+        console.info("Picking option:", opt);
+        return await page.evaluate((optEval) => {
+          const labels = document.querySelectorAll('label[class*="inputItem"]');
+          labels.forEach((label) => {
+            if (label.textContent?.startsWith(optEval)) {
+              (label as HTMLElement).click();
+            }
           });
-        }
-      }, menu as unknown as puppeteer.JSONObject);
+        }, opt);
+      })
+    );
 
-      const [addToBaseket] = await page.$x(
-        "//button[contains(., 'Add to Basket')]"
+    // Note
+    if (menu.note) {
+      console.info("Filling note...");
+      await page.type(".ant-drawer-open textarea", menu.note);
+    }
+
+    // Quantity
+    await page.waitForXPath("//a[contains(@class, 'quantityButton')]");
+    console.info("Adjusting quantity to:", menu.quantity);
+    await page.evaluate((menuEval) => {
+      const buttons = document.querySelectorAll(
+        'div[class*="ant-drawer-open"] a[class*="quantityButton"]'
       );
-      if (addToBaseket) {
-        console.info("Adding to Basket...");
-        await page.waitForTimeout(300);
-        await addToBaseket.click();
-        await page.waitForSelector(".ant-drawer-open", { hidden: true });
+      const increase = buttons[1] as HTMLButtonElement;
+      if (increase && menuEval.quantity > 1) {
+        [...Array(menuEval.quantity - 1)].forEach(() => {
+          increase.click();
+        });
       }
-      return Promise.resolve();
-    })
-  );
+    }, menu as unknown as puppeteer.JSONObject);
 
-  await page.waitForTimeout(300);
+    const [addToBaseket] = await page.$x(
+      "//button[contains(., 'Add to Basket')]"
+    );
+    if (addToBaseket) {
+      console.info("Adding to Basket...");
+      await page.waitForTimeout(200);
+      await addToBaseket.click();
+      await page.waitForSelector(".ant-drawer-open", { hidden: true });
+    }
+    return Promise.resolve();
+  }, Promise.resolve());
+
+  await page.waitForTimeout(200); // Wait for the drawer to fully closed.
   await page.click('a[class*="FoodCartBtn"]');
 
   await page.waitForXPath(
@@ -172,7 +172,7 @@ export async function placeOrder(options: PlaceOrderOptions): Promise<void> {
     '//div[contains(@class, "ant-drawer-open")]//button[contains(., "Review Order")]'
   );
   if (reviewOrder) {
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(200); // Wait for the drawer to fully open.
     await reviewOrder.click();
   } else {
     throw new Error("Cannot find `Review Order` button");
@@ -212,6 +212,9 @@ export async function placeOrder(options: PlaceOrderOptions): Promise<void> {
       console.log("🍽 Congrat! Enjoy your food.");
     } else {
       await checkoutButton.click();
+      await page.waitForNavigation();
+      console.info("Waiting for driver...");
+      await page.waitForTimeout(2000);
     }
   }
 
