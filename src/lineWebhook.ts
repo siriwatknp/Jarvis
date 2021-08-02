@@ -1,8 +1,6 @@
 import * as functions from "firebase-functions";
 import admin from "firebase-admin";
 
-admin.initializeApp();
-
 export const lineWebhook = functions
   .region("asia-southeast2")
   .https.onRequest(async (request) => {

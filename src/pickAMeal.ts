@@ -1,5 +1,4 @@
 import * as functions from "firebase-functions";
-import admin from "firebase-admin";
 import { toDate } from "date-fns-tz";
 import { google } from "googleapis";
 import * as Slack from "api/Slack";
@@ -7,8 +6,6 @@ import * as Line from "modules/Line";
 import { placeOrder, extractOrders } from "modules/GrabFood";
 import { shuffle, splitByWeight, randomOneItem } from "utils/shuffle";
 import { getKeyValueMap } from "utils/sheets";
-
-admin.initializeApp();
 
 const sheets = google.sheets("v4");
 
