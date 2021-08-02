@@ -88,20 +88,35 @@ export async function placeOrder(options: PlaceOrderOptions): Promise<void> {
   );
   if (restaurant) {
     console.info("Found restaurant:", options.restaurant);
-    await page.waitForTimeout(500); // prevent not found, may be the page needs to load something first.
-    await restaurant.click();
+    await page.waitForTimeout(1000);
+    await Promise.all([
+      page.waitForNavigation({
+        waitUntil: ["domcontentloaded", "networkidle0"],
+      }),
+      restaurant.click(),
+    ]);
   } else {
     throw new Error(`Cannot find the restaurant`);
+  }
+
+  // check if restaurant open
+  await page.waitForTimeout(1000);
+  const closed = await page.evaluate(
+    () => !!document.querySelector('[class*="openHours"] [class*="closed"]')
+  );
+  if (closed) {
+    await browser.close();
+    throw new Error("restaurant is closed");
   }
 
   console.info("Finding menus...");
   await options.menus.reduce(async (previous, menu, index) => {
     await previous;
-    await page.waitForXPath(`//h3[contains(., '${menu.name}')]`);
-    const [menuHandle] = await page.$x(`//h3[contains(., '${menu.name}')]`);
+    await page.waitForXPath(`//h3[contains(., "${menu.name}")]`);
+    const [menuHandle] = await page.$x(`//h3[contains(., "${menu.name}")]`);
     if (menuHandle) {
       if (index > 0) {
-        await page.waitForTimeout(200); // Wait for the drawer to fully closed.
+        await page.waitForTimeout(300); // Wait for the drawer to fully closed.
       }
       console.info("Found menu:", menu.name);
       await menuHandle.click();
@@ -110,7 +125,7 @@ export async function placeOrder(options: PlaceOrderOptions): Promise<void> {
     }
 
     // Drawer open
-    await page.waitForXPath(`//h5[contains(., '${menu.name}')]`, {
+    await page.waitForXPath(`//h5[contains(., "${menu.name}")]`, {
       visible: true,
     });
     // Choose options
@@ -154,14 +169,14 @@ export async function placeOrder(options: PlaceOrderOptions): Promise<void> {
     );
     if (addToBaseket) {
       console.info("Adding to Basket...");
-      await page.waitForTimeout(200);
+      await page.waitForTimeout(300);
       await addToBaseket.click();
       await page.waitForSelector(".ant-drawer-open", { hidden: true });
     }
     return Promise.resolve();
   }, Promise.resolve());
 
-  await page.waitForTimeout(200); // Wait for the drawer to fully closed.
+  await page.waitForTimeout(300); // Wait for the drawer to fully closed.
   await page.click('a[class*="FoodCartBtn"]');
 
   await page.waitForXPath(
@@ -172,7 +187,7 @@ export async function placeOrder(options: PlaceOrderOptions): Promise<void> {
     '//div[contains(@class, "ant-drawer-open")]//button[contains(., "Review Order")]'
   );
   if (reviewOrder) {
-    await page.waitForTimeout(200); // Wait for the drawer to fully open.
+    await page.waitForTimeout(300); // Wait for the drawer to fully open.
     await reviewOrder.click();
   } else {
     throw new Error("Cannot find `Review Order` button");
