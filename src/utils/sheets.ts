@@ -1,13 +1,7 @@
+import { sheets_v4 } from "googleapis";
+
 const pickValue = (
-  data:
-    | {
-        userEnteredValue?: {
-          stringValue?: string | null;
-          boolValue?: boolean | null;
-          numberValue?: number | null;
-        };
-      }
-    | undefined,
+  data: sheets_v4.Schema$CellData | undefined,
   defaultValue = undefined
 ) => {
   if (!data || !data.userEnteredValue) return defaultValue;
@@ -24,17 +18,7 @@ const pickValue = (
 };
 
 export const getKeyValueMap = <T>(
-  rowData:
-    | Array<{
-        values?: Array<{
-          userEnteredValue?: {
-            stringValue?: string | null;
-            boolValue?: boolean | null;
-            numberValue?: number | null;
-          };
-        }>;
-      }>
-    | undefined
+  rowData: sheets_v4.Schema$GridData["rowData"]
 ): T => {
   const object = (rowData || []).reduce((result, { values }) => {
     const key = pickValue(values?.[0]);
@@ -46,3 +30,21 @@ export const getKeyValueMap = <T>(
   }, {});
   return object as T;
 };
+
+export const findSheetByTitle = (
+  spreadsheet: sheets_v4.Schema$Spreadsheet,
+  title: string
+) => {
+  return spreadsheet.sheets?.find((s) => s.properties?.title === title);
+};
+
+export const createSpreadsheetUtils = (
+  spreadsheet: sheets_v4.Schema$Spreadsheet
+) => ({
+  findSheetByTitle: function (title: string) {
+    return spreadsheet.sheets?.find((s) => s.properties?.title === title);
+  },
+  findSheetById: function (id: number) {
+    return spreadsheet.sheets?.find((s) => s.properties?.sheetId === id);
+  },
+});

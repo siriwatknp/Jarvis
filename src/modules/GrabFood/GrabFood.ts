@@ -1,3 +1,4 @@
+import { sheets_v4 } from "googleapis";
 import * as puppeteer from "puppeteer";
 
 export interface GrabMenu {
@@ -7,22 +8,21 @@ export interface GrabMenu {
   quantity: number;
 }
 
-export function extractOrders(
-  grid: any
-): Array<{ weight: number; restaurant: string; menus: Array<GrabMenu> }> {
+export function extractOrders(grid: sheets_v4.Schema$RowData[]) {
   return grid
     .filter(
-      ({ values }: { values: any }) =>
-        values[1]?.userEnteredValue && values[2]?.userEnteredValue
+      ({ values }) =>
+        values?.[2].userEnteredValue && values?.[3].userEnteredValue
     )
-    .map(({ values }: { values: any }) => {
+    .map(({ values }) => {
       return {
-        weight: values?.[0].userEnteredValue?.numberValue,
-        restaurant: values?.[1].userEnteredValue?.stringValue || "",
+        weight: values?.[0].userEnteredValue?.numberValue || 1,
+        disabled: values?.[1].userEnteredValue?.boolValue || false,
+        restaurant: values?.[2].userEnteredValue?.stringValue || "",
         menus: values
           ? values
-              .slice(2)
-              .map((item: any) =>
+              .slice(3)
+              .map((item) =>
                 extractMenu(item.userEnteredValue?.stringValue || "")
               )
           : [],

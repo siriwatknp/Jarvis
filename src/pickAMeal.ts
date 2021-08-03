@@ -5,7 +5,7 @@ import * as Slack from "api/Slack";
 import * as Line from "modules/Line";
 import { placeOrder, extractOrders } from "modules/GrabFood";
 import { shuffle, splitByWeight, randomOneItem } from "utils/shuffle";
-import { getKeyValueMap } from "utils/sheets";
+import { getKeyValueMap, createSpreadsheetUtils } from "utils/sheets";
 
 const sheets = google.sheets("v4");
 
@@ -25,37 +25,30 @@ export const pickAMeal = functions
       response.status(401).send("❌ Unauthorized!");
       return;
     }
-    const { ggSheetId } = request.query as {
+    const { ggSheetId, sheetTitle = "Food" } = request.query as {
       ggSheetId?: string;
+      sheetTitle?: string;
     };
     const authClient = await auth.getClient();
-    const sheetNames = {
-      orders: "Orders",
-      settings: "Settings",
-      history: "History",
-    };
     try {
       if (ggSheetId) {
-        const spreadsheet = await sheets.spreadsheets.get({
+        const { data: spreadsheet } = await sheets.spreadsheets.get({
           auth: authClient,
           spreadsheetId: ggSheetId,
           includeGridData: true,
         });
+        const spreadsheetUtils = createSpreadsheetUtils(spreadsheet);
 
-        const ordersSheet = spreadsheet.data.sheets?.find(
-          (s) => s.properties?.title === sheetNames.orders
+        const ordersSheet = spreadsheetUtils.findSheetByTitle(sheetTitle);
+        const historySheet = spreadsheetUtils.findSheetByTitle(
+          `${sheetTitle}History`
         );
-        const historySheet = spreadsheet.data.sheets?.find(
-          (s) => s.properties?.title === sheetNames.history
-        );
-        const settingsSheet = spreadsheet.data.sheets?.find(
-          (s) => s.properties?.title === sheetNames.settings
-        );
+        const settingsSheet = spreadsheetUtils.findSheetByTitle("Settings");
         const settings = getKeyValueMap<{
           session: string;
           location: string;
           placeOrderEnabled: boolean;
-          noRepeatRestaurant: boolean;
+          latestRestaurantsOmitCount: boolean;
         }>(settingsSheet?.data?.[0].rowData);
 
         const grid = ordersSheet?.data?.[0].rowData;
@@ -64,14 +57,17 @@ export const pickAMeal = functions
           grid.shift(); // remove header
           let data = extractOrders(grid);
 
-          if (settings.noRepeatRestaurant) {
-            data = data.filter(
-              ({ restaurant }) =>
-                restaurant !==
-                (historySheet?.data?.[0].rowData || []).slice(-1)[0].values?.[1]
-                  ?.userEnteredValue?.stringValue
+          const omittedRestaurants = settings.latestRestaurantsOmitCount
+            ? (historySheet?.data?.[0].rowData || [])
+                .slice(-settings.latestRestaurantsOmitCount)
+                .map(({ values }) => values?.[2]?.userEnteredValue?.stringValue)
+            : [];
+
+          data = data
+            .filter(({ disabled }) => !disabled)
+            .filter(
+              ({ restaurant }) => !omittedRestaurants.includes(restaurant)
             );
-          }
 
           // take weight into account
           const selectedItem = randomOneItem(shuffle(splitByWeight(data)));
