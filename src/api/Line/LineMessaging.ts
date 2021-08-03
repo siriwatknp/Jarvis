@@ -7,10 +7,10 @@ export const sendMessage = async (lineUserIds: Array<string>, text: string) => {
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${functions.config().line.channelaccesstoken}`,
-      body: JSON.stringify({
-        to: lineUserIds,
-        messages: [{ type: "text", text }],
-      }),
     },
+    body: JSON.stringify({
+      to: lineUserIds,
+      messages: [{ type: "text", text }],
+    }),
   });
 };
