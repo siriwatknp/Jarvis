@@ -1,5 +1,5 @@
 import * as functions from "firebase-functions";
-import * as puppeteer from "puppeteer";
+import { launch } from "puppeteer";
 import { google } from "googleapis";
 import { COL } from "api/GoogleSheets";
 
@@ -24,7 +24,7 @@ export const trackNpmDownload = functions
       if (!pkg) {
         throw new Error("Missing query param `pkg`");
       }
-      const browser = await puppeteer.launch({
+      const browser = await launch({
         headless: true,
         args: ["--no-sandbox", "--disable-setuid-sandbox"],
       });

@@ -1,5 +1,6 @@
 import { sheets_v4 } from "googleapis";
-import * as puppeteer from "puppeteer";
+import { JSONObject, launch } from "puppeteer";
+import { shuffle, splitByWeight, randomOneItem } from "utils/shuffle";
 
 export interface GrabMenu {
   name: string;
@@ -8,26 +9,72 @@ export interface GrabMenu {
   quantity: number;
 }
 
+export function getColumnDefs() {
+  return {
+    weight: 0,
+    disabled: 1,
+    restaurant: 2,
+    menu: 3,
+  };
+}
+
+export function randomOneOrder(
+  ordersSheet: sheets_v4.Schema$Sheet | undefined,
+  historySheet: sheets_v4.Schema$Sheet | undefined,
+  settings: { latestRestaurantsOmitCount?: boolean }
+) {
+  const columnDefs = getColumnDefs();
+  const grid = ordersSheet?.data?.[0].rowData;
+  let data: ReturnType<typeof extractOrders> = [];
+  let omittedRestaurants: Array<string> = [];
+
+  if (grid) {
+    grid.shift(); // remove header
+    data = extractOrders(grid);
+
+    omittedRestaurants = settings.latestRestaurantsOmitCount
+      ? (historySheet?.data?.[0].rowData || [])
+          .slice(-settings.latestRestaurantsOmitCount)
+          .map(
+            ({ values }) =>
+              values?.[columnDefs.restaurant]?.userEnteredValue?.stringValue ||
+              ""
+          )
+          .filter((val) => !!val)
+      : [];
+
+    data = data
+      .filter(({ disabled }) => !disabled)
+      .filter(({ restaurant }) => !omittedRestaurants.includes(restaurant));
+  }
+  return {
+    result: randomOneItem(shuffle(splitByWeight(data))),
+    orders: data,
+    omittedRestaurants,
+  };
+}
+
 export function extractOrders(grid: sheets_v4.Schema$RowData[]) {
+  const column = getColumnDefs();
   return grid
     .filter(
       ({ values }) =>
-        values?.[2].userEnteredValue && values?.[3].userEnteredValue
+        values?.[column.restaurant].userEnteredValue &&
+        values?.[column.menu].userEnteredValue
     )
-    .map(({ values }) => {
-      return {
-        weight: values?.[0].userEnteredValue?.numberValue || 1,
-        disabled: values?.[1].userEnteredValue?.boolValue || false,
-        restaurant: values?.[2].userEnteredValue?.stringValue || "",
-        menus: values
-          ? values
-              .slice(3)
-              .map((item) =>
-                extractMenu(item.userEnteredValue?.stringValue || "")
-              )
-          : [],
-      };
-    });
+    .map(({ values }) => ({
+      weight: values?.[column.weight].userEnteredValue?.numberValue || 1,
+      disabled: values?.[column.disabled].userEnteredValue?.boolValue || false,
+      restaurant:
+        values?.[column.restaurant].userEnteredValue?.stringValue || "",
+      menus: values
+        ? values
+            .slice(column.menu)
+            .map((item) =>
+              extractMenu(item.userEnteredValue?.stringValue || "")
+            )
+        : [],
+    }));
 }
 
 export function extractMenu(menu: string): GrabMenu {
@@ -60,7 +107,7 @@ export interface PlaceOrderOptions {
 }
 
 export async function placeOrder(options: PlaceOrderOptions): Promise<void> {
-  const browser = await puppeteer.launch({
+  const browser = await launch({
     headless: options.headleass || false,
     defaultViewport: { width: 1024, height: 600 },
   });
@@ -162,7 +209,7 @@ export async function placeOrder(options: PlaceOrderOptions): Promise<void> {
           increase.click();
         });
       }
-    }, menu as unknown as puppeteer.JSONObject);
+    }, menu as unknown as JSONObject);
 
     const [addToBaseket] = await page.$x(
       "//button[contains(., 'Add to Basket')]"

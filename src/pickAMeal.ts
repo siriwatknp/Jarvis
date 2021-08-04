@@ -3,8 +3,7 @@ import { toDate } from "date-fns-tz";
 import { google } from "googleapis";
 import * as Slack from "api/Slack";
 import * as Line from "modules/Line";
-import { placeOrder, extractOrders } from "modules/GrabFood";
-import { shuffle, splitByWeight, randomOneItem } from "utils/shuffle";
+import { placeOrder, randomOneOrder } from "modules/GrabFood";
 import { getKeyValueMap, createSpreadsheetUtils } from "utils/sheets";
 
 const sheets = google.sheets("v4");
@@ -51,27 +50,13 @@ export const pickAMeal = functions
           latestRestaurantsOmitCount: boolean;
         }>(settingsSheet?.data?.[0].rowData);
 
-        const grid = ordersSheet?.data?.[0].rowData;
+        const { result: selectedItem } = randomOneOrder(
+          ordersSheet,
+          historySheet,
+          settings
+        );
 
-        if (grid) {
-          grid.shift(); // remove header
-          let data = extractOrders(grid);
-
-          const omittedRestaurants = settings.latestRestaurantsOmitCount
-            ? (historySheet?.data?.[0].rowData || [])
-                .slice(-settings.latestRestaurantsOmitCount)
-                .map(({ values }) => values?.[2]?.userEnteredValue?.stringValue)
-            : [];
-
-          data = data
-            .filter(({ disabled }) => !disabled)
-            .filter(
-              ({ restaurant }) => !omittedRestaurants.includes(restaurant)
-            );
-
-          // take weight into account
-          const selectedItem = randomOneItem(shuffle(splitByWeight(data)));
-
+        if (selectedItem) {
           await placeOrder({
             headleass: process.env.NODE_ENV !== "development",
             dryrun: !settings.placeOrderEnabled,
@@ -95,7 +80,9 @@ export const pickAMeal = functions
           }\n🍽 ${selectedItem.menus.map(({ name }) => name).join(", ")}`;
           await Promise.all([
             Slack.sendMessage(message),
-            Line.sendMessageToFollowers(message),
+            process.env.NODE_ENV !== "development"
+              ? Line.sendMessageToFollowers(message)
+              : Promise.resolve(undefined),
             // update History sheet
             sheets.spreadsheets.values.update({
               auth: authClient,
@@ -124,7 +111,9 @@ export const pickAMeal = functions
       const message = `🚨 Fail to place order - ${error.message || "unknown"}`;
       await Promise.all([
         Slack.sendMessage(message),
-        Line.sendMessageToFollowers(message),
+        process.env.NODE_ENV !== "development"
+          ? Line.sendMessageToFollowers(message)
+          : Promise.resolve(undefined),
       ]);
       response.status(400).send(error.message);
     }
