@@ -40,7 +40,7 @@ export const pickAMeal = functions
 
         const ordersSheet = spreadsheetUtils.findSheetByTitle(sheetTitle);
         const historySheet = spreadsheetUtils.findSheetByTitle(
-          `${sheetTitle}History`
+          `${sheetTitle} History`
         );
         const settingsSheet = spreadsheetUtils.findSheetByTitle("Settings");
         const settings = getKeyValueMap<{

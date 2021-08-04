@@ -73,6 +73,7 @@ export function extractOrders(grid: sheets_v4.Schema$RowData[]) {
             .map((item) =>
               extractMenu(item.userEnteredValue?.stringValue || "")
             )
+            .filter((item) => !!item.name)
         : [],
     }));
 }
@@ -129,156 +130,162 @@ export async function placeOrder(options: PlaceOrderOptions): Promise<void> {
     `https://food.grab.com/th/en/restaurants?search=${options.restaurant}`
   );
 
-  await page.waitForXPath(`//h6[contains(., '${options.restaurant}')]`);
-  const [restaurant] = await page.$x(
-    `//h6[contains(., '${options.restaurant}')]`
-  );
-  if (restaurant) {
-    console.info("Found restaurant:", options.restaurant);
-    await page.waitForTimeout(1000);
-    await Promise.all([
-      page.waitForNavigation({
-        waitUntil: ["domcontentloaded", "networkidle0"],
-      }),
-      restaurant.click(),
-    ]);
-  } else {
-    throw new Error(`Cannot find the restaurant`);
-  }
-
-  // check if restaurant open
-  await page.waitForTimeout(1000);
-  const closed = await page.evaluate(
-    () => !!document.querySelector('[class*="openHours"] [class*="closed"]')
-  );
-  if (closed) {
-    await browser.close();
-    throw new Error("restaurant is closed");
-  }
-
-  console.info("Finding menus...");
-  await options.menus.reduce(async (previous, menu, index) => {
-    await previous;
-    await page.waitForXPath(`//h3[contains(., "${menu.name}")]`);
-    const [menuHandle] = await page.$x(`//h3[contains(., "${menu.name}")]`);
-    if (menuHandle) {
-      if (index > 0) {
-        await page.waitForTimeout(300); // Wait for the drawer to fully closed.
-      }
-      console.info("Found menu:", menu.name);
-      await menuHandle.click();
+  try {
+    await page.waitForXPath(`//h6[contains(., '${options.restaurant}')]`);
+    const [restaurant] = await page.$x(
+      `//h6[contains(., '${options.restaurant}')]`
+    );
+    if (restaurant) {
+      console.info("Found restaurant:", options.restaurant);
+      await page.waitForTimeout(1000);
+      await Promise.all([
+        page.waitForNavigation({
+          waitUntil: ["domcontentloaded", "networkidle0"],
+        }),
+        restaurant.click(),
+      ]);
     } else {
-      throw new Error(`Cannot find the menu`);
+      throw new Error(`Cannot find the restaurant`);
     }
 
-    // Drawer open
-    await page.waitForXPath(`//h5[contains(., "${menu.name}")]`, {
+    // check if restaurant open
+    await page.waitForTimeout(1000);
+    const closed = await page.evaluate(
+      () => !!document.querySelector('[class*="openHours"] [class*="closed"]')
+    );
+    if (closed) {
+      await browser.close();
+      throw new Error("restaurant is closed");
+    }
+
+    console.info("Finding menus...");
+    await options.menus.reduce(async (previous, menu, index) => {
+      await previous;
+      await page.waitForXPath(`//h3[contains(., "${menu.name}")]`);
+      const [menuHandle] = await page.$x(`//h3[contains(., "${menu.name}")]`);
+      if (menuHandle) {
+        if (index > 0) {
+          await page.waitForTimeout(300); // Wait for the drawer to fully closed.
+        }
+        console.info("Found menu:", menu.name);
+        await menuHandle.click();
+      } else {
+        throw new Error(`Cannot find the menu`);
+      }
+
+      // Drawer open
+      await page.waitForXPath(`//h5[contains(., "${menu.name}")]`, {
+        visible: true,
+      });
+      // Choose options
+      await Promise.all(
+        menu.options.map(async (opt) => {
+          console.info("Picking option:", opt);
+          return await page.evaluate((optEval) => {
+            const labels = document.querySelectorAll(
+              'label[class*="inputItem"]'
+            );
+            labels.forEach((label) => {
+              if (label.textContent?.startsWith(optEval)) {
+                (label as HTMLElement).click();
+              }
+            });
+          }, opt);
+        })
+      );
+
+      // Note
+      if (menu.note) {
+        console.info("Filling note...");
+        await page.type(".ant-drawer-open textarea", menu.note);
+      }
+
+      // Quantity
+      await page.waitForXPath("//a[contains(@class, 'quantityButton')]");
+      console.info("Adjusting quantity to:", menu.quantity);
+      await page.evaluate((menuEval) => {
+        const buttons = document.querySelectorAll(
+          'div[class*="ant-drawer-open"] a[class*="quantityButton"]'
+        );
+        const increase = buttons[1] as HTMLButtonElement;
+        if (increase && menuEval.quantity > 1) {
+          [...Array(menuEval.quantity - 1)].forEach(() => {
+            increase.click();
+          });
+        }
+      }, menu as unknown as JSONObject);
+
+      const [addToBaseket] = await page.$x(
+        "//button[contains(., 'Add to Basket')]"
+      );
+      if (addToBaseket) {
+        console.info("Adding to Basket...");
+        await page.waitForTimeout(300);
+        await addToBaseket.click();
+        await page.waitForSelector(".ant-drawer-open", { hidden: true });
+      }
+      return Promise.resolve();
+    }, Promise.resolve());
+
+    await page.waitForTimeout(300); // Wait for the drawer to fully closed.
+    await page.click('a[class*="FoodCartBtn"]');
+
+    await page.waitForXPath(
+      '//div[contains(@class, "ant-drawer-open")]//button[contains(., "Review Order")]',
+      { visible: true }
+    );
+    const [reviewOrder] = await page.$x(
+      '//div[contains(@class, "ant-drawer-open")]//button[contains(., "Review Order")]'
+    );
+    if (reviewOrder) {
+      await page.waitForTimeout(300); // Wait for the drawer to fully open.
+      await reviewOrder.click();
+    } else {
+      throw new Error("Cannot find `Review Order` button");
+    }
+
+    await page.waitForNavigation();
+    console.info("Checking out...");
+
+    // checkout
+    await page.waitForSelector("#payment");
+    await page.evaluate(() => {
+      const payment = document.getElementById("payment");
+      (payment?.firstChild as HTMLElement).click();
+    });
+    console.info("Changing payment method to Credit Card...");
+    await page.evaluate(() => {
+      const list = document.querySelector("ul.ant-select-dropdown-menu");
+      list?.childNodes.forEach((node) => {
+        if (node && node.textContent === "6712") {
+          (node as HTMLElement).click();
+        }
+      });
+    });
+
+    await page.waitForTimeout(2000);
+
+    await page.waitForXPath('//button[contains(., "Place Order")]', {
       visible: true,
     });
-    // Choose options
-    await Promise.all(
-      menu.options.map(async (opt) => {
-        console.info("Picking option:", opt);
-        return await page.evaluate((optEval) => {
-          const labels = document.querySelectorAll('label[class*="inputItem"]');
-          labels.forEach((label) => {
-            if (label.textContent?.startsWith(optEval)) {
-              (label as HTMLElement).click();
-            }
-          });
-        }, opt);
-      })
+    const [checkoutButton] = await page.$x(
+      '//button[contains(., "Place Order")]'
     );
-
-    // Note
-    if (menu.note) {
-      console.info("Filling note...");
-      await page.type(".ant-drawer-open textarea", menu.note);
-    }
-
-    // Quantity
-    await page.waitForXPath("//a[contains(@class, 'quantityButton')]");
-    console.info("Adjusting quantity to:", menu.quantity);
-    await page.evaluate((menuEval) => {
-      const buttons = document.querySelectorAll(
-        'div[class*="ant-drawer-open"] a[class*="quantityButton"]'
-      );
-      const increase = buttons[1] as HTMLButtonElement;
-      if (increase && menuEval.quantity > 1) {
-        [...Array(menuEval.quantity - 1)].forEach(() => {
-          increase.click();
-        });
+    await page.evaluate(() => window.scroll(0, 800));
+    if (checkoutButton) {
+      console.info("Placing order...");
+      if (options.dryrun) {
+        console.log("🍽 Congrat! Enjoy your food.");
+      } else {
+        await checkoutButton.click();
+        await page.waitForNavigation();
+        console.info("Waiting for driver...");
+        await page.waitForTimeout(2000);
       }
-    }, menu as unknown as JSONObject);
-
-    const [addToBaseket] = await page.$x(
-      "//button[contains(., 'Add to Basket')]"
-    );
-    if (addToBaseket) {
-      console.info("Adding to Basket...");
-      await page.waitForTimeout(300);
-      await addToBaseket.click();
-      await page.waitForSelector(".ant-drawer-open", { hidden: true });
     }
-    return Promise.resolve();
-  }, Promise.resolve());
-
-  await page.waitForTimeout(300); // Wait for the drawer to fully closed.
-  await page.click('a[class*="FoodCartBtn"]');
-
-  await page.waitForXPath(
-    '//div[contains(@class, "ant-drawer-open")]//button[contains(., "Review Order")]',
-    { visible: true }
-  );
-  const [reviewOrder] = await page.$x(
-    '//div[contains(@class, "ant-drawer-open")]//button[contains(., "Review Order")]'
-  );
-  if (reviewOrder) {
-    await page.waitForTimeout(300); // Wait for the drawer to fully open.
-    await reviewOrder.click();
-  } else {
-    throw new Error("Cannot find `Review Order` button");
+    await browser.close();
+  } catch (error) {
+    await browser.close();
+    return Promise.reject(error);
   }
-
-  await page.waitForNavigation();
-  console.info("Checking out...");
-
-  // checkout
-  await page.waitForSelector("#payment");
-  await page.evaluate(() => {
-    const payment = document.getElementById("payment");
-    (payment?.firstChild as HTMLElement).click();
-  });
-  console.info("Changing payment method to Credit Card...");
-  await page.evaluate(() => {
-    const list = document.querySelector("ul.ant-select-dropdown-menu");
-    list?.childNodes.forEach((node) => {
-      if (node && node.textContent === "6712") {
-        (node as HTMLElement).click();
-      }
-    });
-  });
-
-  await page.waitForTimeout(2000);
-
-  await page.waitForXPath('//button[contains(., "Place Order")]', {
-    visible: true,
-  });
-  const [checkoutButton] = await page.$x(
-    '//button[contains(., "Place Order")]'
-  );
-  await page.evaluate(() => window.scroll(0, 800));
-  if (checkoutButton) {
-    console.info("Placing order...");
-    if (options.dryrun) {
-      console.log("🍽 Congrat! Enjoy your food.");
-    } else {
-      await checkoutButton.click();
-      await page.waitForNavigation();
-      console.info("Waiting for driver...");
-      await page.waitForTimeout(2000);
-    }
-  }
-
-  await browser.close();
 }
