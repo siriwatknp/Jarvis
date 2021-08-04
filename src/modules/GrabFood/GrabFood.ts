@@ -59,8 +59,8 @@ export function extractOrders(grid: sheets_v4.Schema$RowData[]) {
   return grid
     .filter(
       ({ values }) =>
-        values?.[column.restaurant].userEnteredValue &&
-        values?.[column.menu].userEnteredValue
+        values?.[column.restaurant]?.userEnteredValue &&
+        values?.[column.menu]?.userEnteredValue
     )
     .map(({ values }) => ({
       weight: values?.[column.weight].userEnteredValue?.numberValue || 1,

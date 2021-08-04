@@ -26,6 +26,11 @@ describe("GrabFood Module", () => {
             },
             {
               userEnteredValue: {
+                boolValue: false,
+              },
+            },
+            {
+              userEnteredValue: {
                 stringValue: "เจ๊เกียง - บรรทัดทอง",
               },
             },
@@ -59,6 +64,7 @@ describe("GrabFood Module", () => {
     ).toEqual([
       {
         weight: 1,
+        disabled: false,
         restaurant: "เจ๊เกียง - บรรทัดทอง",
         menus: [
           { name: "แกงจืดต้มบ๊วย", options: [], note: "", quantity: 1 },
