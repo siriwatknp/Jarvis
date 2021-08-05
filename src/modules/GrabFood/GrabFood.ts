@@ -9,7 +9,7 @@ export interface GrabMenu {
   quantity: number;
 }
 
-export function getColumnDefs() {
+export function getOrderSheetColumnDefs() {
   return {
     weight: 0,
     disabled: 1,
@@ -18,12 +18,18 @@ export function getColumnDefs() {
   };
 }
 
-export function randomOneOrder(
+function getHistorySheetColumnDefs() {
+  return {
+    restaurant: 1,
+  };
+}
+
+export function getValidOrders(
   ordersSheet: sheets_v4.Schema$Sheet | undefined,
   historySheet: sheets_v4.Schema$Sheet | undefined,
-  settings: { latestRestaurantsOmitCount?: boolean }
+  settings: { latestRestaurantsOmitCount?: number }
 ) {
-  const columnDefs = getColumnDefs();
+  const historyDefs = getHistorySheetColumnDefs();
   const grid = ordersSheet?.data?.[0].rowData;
   let data: ReturnType<typeof extractOrders> = [];
   let omittedRestaurants: Array<string> = [];
@@ -37,7 +43,7 @@ export function randomOneOrder(
           .slice(-settings.latestRestaurantsOmitCount)
           .map(
             ({ values }) =>
-              values?.[columnDefs.restaurant]?.userEnteredValue?.stringValue ||
+              values?.[historyDefs.restaurant]?.userEnteredValue?.stringValue ||
               ""
           )
           .filter((val) => !!val)
@@ -48,14 +54,22 @@ export function randomOneOrder(
       .filter(({ restaurant }) => !omittedRestaurants.includes(restaurant));
   }
   return {
-    result: randomOneItem(shuffle(splitByWeight(data))),
     orders: data,
     omittedRestaurants,
   };
 }
 
+export function randomOneOrder(...args: Parameters<typeof getValidOrders>) {
+  const { orders, omittedRestaurants } = getValidOrders(...args);
+  return {
+    result: randomOneItem(shuffle(splitByWeight(orders))),
+    orders,
+    omittedRestaurants,
+  };
+}
+
 export function extractOrders(grid: sheets_v4.Schema$RowData[]) {
-  const column = getColumnDefs();
+  const column = getOrderSheetColumnDefs();
   return grid
     .filter(
       ({ values }) =>
