@@ -31,6 +31,8 @@ export const pickAMeal = functions
     const authClient = await auth.getClient();
     try {
       if (ggSheetId) {
+        response.status(200).send("The ordering process has been started.");
+        const startTime = Date.now();
         const { data: spreadsheet } = await sheets.spreadsheets.get({
           auth: authClient,
           spreadsheetId: ggSheetId,
@@ -100,8 +102,12 @@ export const pickAMeal = functions
               },
             }),
           ]);
-
-          response.status(200).send("successful!");
+          const endTime = Date.now();
+          console.info(
+            "The process is done in",
+            (endTime - startTime) / 1000,
+            "seconds"
+          );
         }
       } else {
         throw new Error("`ggSheetId` query param is required.");

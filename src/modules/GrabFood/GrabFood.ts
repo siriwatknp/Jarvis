@@ -113,6 +113,7 @@ export async function placeOrder(options: PlaceOrderOptions): Promise<void> {
     defaultViewport: { width: 1024, height: 600 },
   });
   const page = await browser.newPage();
+  page.setDefaultTimeout(10000);
   await page.setCookie(
     {
       domain: "food.grab.com",
@@ -131,9 +132,19 @@ export async function placeOrder(options: PlaceOrderOptions): Promise<void> {
   );
 
   try {
-    await page.waitForXPath(`//h6[contains(., '${options.restaurant}')]`);
+    try {
+      await page.waitForXPath(`//h6[contains(., "${options.restaurant}")]`, {
+        timeout: 3000,
+      });
+    } catch (error) {
+      // sometimes Grab cannot find the restaurant from search, try reloading (it is a bug from their side)
+      await page.reload({ waitUntil: ["domcontentloaded", "networkidle0"] });
+      await page.waitForXPath(`//h6[contains(., "${options.restaurant}")]`, {
+        timeout: 3000,
+      });
+    }
     const [restaurant] = await page.$x(
-      `//h6[contains(., '${options.restaurant}')]`
+      `//h6[contains(., "${options.restaurant}")]`
     );
     if (restaurant) {
       console.info("Found restaurant:", options.restaurant);
@@ -146,6 +157,14 @@ export async function placeOrder(options: PlaceOrderOptions): Promise<void> {
       ]);
     } else {
       throw new Error(`Cannot find the restaurant`);
+    }
+
+    // if Grab return 404, try reloading (it is a bug on their side)
+    const isError = await page.evaluate(
+      () => !!document.querySelector('[class*="ErrorMessageWidgetContainer"]')
+    );
+    if (isError) {
+      await page.reload({ waitUntil: ["domcontentloaded", "networkidle0"] });
     }
 
     // check if restaurant open
@@ -161,22 +180,31 @@ export async function placeOrder(options: PlaceOrderOptions): Promise<void> {
     console.info("Finding menus...");
     await options.menus.reduce(async (previous, menu, index) => {
       await previous;
-      await page.waitForXPath(`//h3[contains(., "${menu.name}")]`);
+      await page.waitForXPath(`//h3[contains(., "${menu.name}")]`, {
+        timeout: 3000,
+      });
       const [menuHandle] = await page.$x(`//h3[contains(., "${menu.name}")]`);
       if (menuHandle) {
         if (index > 0) {
           await page.waitForTimeout(300); // Wait for the drawer to fully closed.
         }
-        console.info("Found menu:", menu.name);
+        console.info("Found menu:", menu.name, ", trying to open drawer...");
         await menuHandle.click();
       } else {
         throw new Error(`Cannot find the menu`);
       }
 
       // Drawer open
-      await page.waitForXPath(`//h5[contains(., "${menu.name}")]`, {
-        visible: true,
-      });
+      try {
+        await page.waitForXPath(`//h5[contains(., "${menu.name}")]`, {
+          visible: true,
+          timeout: 3000,
+        });
+      } catch (error) {
+        throw new Error(
+          `🍽 ${menu.name} is not available or has been removed from the restaurant.`
+        );
+      }
       // Choose options
       await Promise.all(
         menu.options.map(async (opt) => {
