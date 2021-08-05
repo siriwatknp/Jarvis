@@ -3,6 +3,7 @@ import { google } from "googleapis";
 import admin from "firebase-admin";
 import { launch } from "puppeteer";
 import * as Line from "api/Line";
+import { createSpreadsheetUtils } from "utils/sheets";
 
 const sheets = google.sheets("v4");
 
@@ -36,12 +37,12 @@ async function waitForOTP() {
 
   async function loop(): Promise<string> {
     try {
-      await waitFor(5000);
+      await waitFor(3000);
       return await getOTP();
     } catch (error) {
       retry += 1;
       console.log("retry", retry);
-      if (retry >= 6) {
+      if (retry >= 20) {
         return "";
       } else {
         return await loop();
@@ -92,7 +93,6 @@ export const stayLoginGrabFood = functions
         "👋 Hello, I'm trying to login to your Grab account. Please reply with the OTP code from your registered phone number."
       );
       const otp = await waitForOTP();
-      console.log("otp", typeof otp, otp);
 
       await page.type("input#otp", otp);
       await page.waitForXPath('//button[contains(.,"Next")]');
@@ -120,12 +120,39 @@ export const stayLoginGrabFood = functions
       ]);
 
       const cookies = await page.cookies();
+      await browser.close();
+
       const session = cookies.find((item) => item.name === "gfc_session");
 
-      console.log(session);
+      const { data: spreadsheet } = await sheets.spreadsheets.get({
+        auth: authClient,
+        spreadsheetId: ggSheetId,
+        includeGridData: true,
+      });
 
-      await page.waitForTimeout(5000);
-      await browser.close();
+      const spreadsheetUtils = createSpreadsheetUtils(spreadsheet);
+
+      const settingsSheet = spreadsheetUtils.findSheetByTitle(sheetTitle);
+
+      const rowIndex = settingsSheet?.data?.[0].rowData?.findIndex(
+        ({ values }) => values?.[0].userEnteredValue?.stringValue === "session"
+      );
+
+      if (rowIndex !== undefined) {
+        await sheets.spreadsheets.values.update({
+          auth: authClient,
+          spreadsheetId: ggSheetId,
+          range: `${sheetTitle}!B${rowIndex + 1}`,
+          valueInputOption: "USER_ENTERED",
+          requestBody: {
+            values: [[session?.value]],
+          },
+        });
+      }
+      await admin
+        .database()
+        .ref(`/GrabOTP/${functions.config().line.siriwatkuid}`)
+        .remove();
       response.status(200).send("Done!");
     } else {
       response.status(400).send("`ggSheetId` query param is required.");
