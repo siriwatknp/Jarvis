@@ -48,7 +48,7 @@ export const pickAMeal = functions
           session: string;
           location: string;
           placeOrderEnabled: boolean;
-          latestRestaurantsOmitCount: boolean;
+          latestRestaurantsOmitCount: number;
         }>(settingsSheet?.data?.[0].rowData);
 
         const { result: selectedItem } = randomOneOrder(

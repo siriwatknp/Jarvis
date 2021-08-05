@@ -13,4 +13,22 @@ export const lineWebhook = functions
         .doc(userId)
         .set(event);
     }
+    const myUid = functions.config().line.siriwatkuid;
+
+    if (event.type === "message") {
+      // siriwatk specific
+      if (event.source.userId === myUid) {
+        if (
+          event.message.type === "text" &&
+          event.message.text.match(/^[0-9]{6}$/)
+        ) {
+          // OTP
+          // TODO: need to check what provider
+          await admin
+            .database()
+            .ref(`/GrabOTP/${myUid}`)
+            .set(event.message.text);
+        }
+      }
+    }
   });
