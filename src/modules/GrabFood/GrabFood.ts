@@ -99,7 +99,7 @@ export function extractMenu(menu: string): GrabMenu {
 }
 
 export interface PlaceOrderOptions {
-  headleass: boolean;
+  headless: boolean;
   dryrun: boolean;
   session: string;
   location: string;
@@ -109,7 +109,7 @@ export interface PlaceOrderOptions {
 
 export async function placeOrder(options: PlaceOrderOptions): Promise<void> {
   const browser = await launch({
-    headless: options.headleass || false,
+    headless: options.headless || false,
     defaultViewport: { width: 1024, height: 600 },
   });
   const page = await browser.newPage();

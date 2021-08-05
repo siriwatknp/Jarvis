@@ -59,7 +59,8 @@ export const pickAMeal = functions
 
         if (selectedItem) {
           await placeOrder({
-            headleass: process.env.NODE_ENV !== "development",
+            headless: process.env.NODE_ENV !== "development",
+            // headless: false,
             dryrun: !settings.placeOrderEnabled,
             session: settings.session,
             location: settings.location,

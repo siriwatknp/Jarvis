@@ -53,7 +53,7 @@ export const pickAMealE2E_mVAfm = functions
         }>(settingsSheet?.data?.[0].rowData);
         try {
           await placeOrder({
-            headleass: process.env.NODE_ENV !== "development",
+            headless: process.env.NODE_ENV !== "development",
             dryrun: true,
             session: settings.session,
             location: settings.location,
