@@ -14,7 +14,7 @@ const auth = new google.auth.GoogleAuth({
 
 export const pickAMeal = functions
   .region("asia-southeast2")
-  .runWith({ memory: "1GB" })
+  .runWith({ memory: "1GB", timeoutSeconds: 120 })
   .https.onRequest(async (request, response) => {
     const { headers } = request;
     if (
@@ -31,7 +31,6 @@ export const pickAMeal = functions
     const authClient = await auth.getClient();
     try {
       if (ggSheetId) {
-        response.status(200).send("The ordering process has been started.");
         const startTime = Date.now();
         const { data: spreadsheet } = await sheets.spreadsheets.get({
           auth: authClient,
@@ -108,6 +107,10 @@ export const pickAMeal = functions
             (endTime - startTime) / 1000,
             "seconds"
           );
+
+          // need to wait for puppeteer to finish, otherwise background tasks cannot run in cloud functions.
+          // https://github.com/puppeteer/puppeteer/issues/4796#issuecomment-535612842
+          response.status(200).send("The ordering process is done.");
         }
       } else {
         throw new Error("`ggSheetId` query param is required.");

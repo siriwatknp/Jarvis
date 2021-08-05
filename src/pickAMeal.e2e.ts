@@ -34,7 +34,6 @@ export const pickAMealE2E_mVAfm = functions
         spreadsheetId: ggSheetId,
         includeGridData: true,
       });
-      response.status(200).send("The test has been run!");
       const spreadsheetUtils = createSpreadsheetUtils(spreadsheet);
 
       const ordersSheet = spreadsheetUtils.findSheetByTitle(sheetTitle);
@@ -83,6 +82,7 @@ export const pickAMealE2E_mVAfm = functions
         (endTime - startTime) / 1000,
         "seconds"
       );
+      response.status(200).send("All the tests are done!");
     } else {
       response.status(400).send("`ggSheetId` query param is required.");
     }
