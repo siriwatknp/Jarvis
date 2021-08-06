@@ -27,10 +27,16 @@ export const lineWebhook = functions
             if (event.message.text.match(/^[0-9]{6}$/)) {
               // OTP
               // TODO: need to check what provider
-              await admin
-                .database()
-                .ref(`/GrabOTP/${myUid}`)
-                .set(event.message.text);
+              await Promise.all([
+                admin
+                  .database()
+                  .ref(`/GrabOTP/${myUid}`)
+                  .set(event.message.text),
+                Line.reply(
+                  event.replyToken,
+                  "OTP received, Sir. Enjoy your day, I'll handle the rest."
+                ),
+              ]);
             } else {
               await Line.reply(
                 event.replyToken,
