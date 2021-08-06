@@ -41,7 +41,6 @@ async function waitForOTP() {
       return await getOTP();
     } catch (error) {
       retry += 1;
-      console.log("retry", retry);
       if (retry >= 20) {
         return "";
       } else {
@@ -55,7 +54,7 @@ async function waitForOTP() {
 
 export const stayLoginGrabFood = functions
   .region("asia-southeast2")
-  .runWith({ timeoutSeconds: 120 })
+  .runWith({ memory: "1GB", timeoutSeconds: 120 })
   .https.onRequest(async (request, response) => {
     const myUid = functions.config().line.siriwatkuid;
     const { ggSheetId, sheetTitle = "Settings" } = request.query as {
