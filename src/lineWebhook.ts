@@ -1,5 +1,6 @@
 import * as functions from "firebase-functions";
 import admin from "firebase-admin";
+import * as Line from "api/Line";
 
 export const lineWebhook = functions
   .region("asia-southeast2")
@@ -18,16 +19,25 @@ export const lineWebhook = functions
     if (event.type === "message") {
       // siriwatk specific
       if (event.source.userId === myUid) {
-        if (
-          event.message.type === "text" &&
-          event.message.text.match(/^[0-9]{6}$/)
-        ) {
-          // OTP
-          // TODO: need to check what provider
-          await admin
-            .database()
-            .ref(`/GrabOTP/${myUid}`)
-            .set(event.message.text);
+        const status = (
+          await admin.database().ref(`/GrabFoodStatus/${myUid}`).once("value")
+        ).val();
+        if (status === "signing-in") {
+          if (event.message.type === "text") {
+            if (event.message.text.match(/^[0-9]{6}$/)) {
+              // OTP
+              // TODO: need to check what provider
+              await admin
+                .database()
+                .ref(`/GrabOTP/${myUid}`)
+                .set(event.message.text);
+            } else {
+              await Line.reply(
+                event.replyToken,
+                "Sir, the OTP should have exactly 6 numbers. Please try again."
+              );
+            }
+          }
         }
       }
     }

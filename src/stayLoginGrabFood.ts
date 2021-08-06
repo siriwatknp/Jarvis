@@ -57,16 +57,19 @@ export const stayLoginGrabFood = functions
   .region("asia-southeast2")
   .runWith({ timeoutSeconds: 120 })
   .https.onRequest(async (request, response) => {
+    const myUid = functions.config().line.siriwatkuid;
     const { ggSheetId, sheetTitle = "Settings" } = request.query as {
       ggSheetId?: string;
       sheetTitle?: string;
     };
     const authClient = await auth.getClient();
     if (ggSheetId) {
+      const startTime = Date.now();
       const browser = await launch({
         headless: process.env.NODE_ENV !== "development",
         defaultViewport: { width: 1024, height: 600 },
       });
+      await admin.database().ref(`/GrabFoodStatus/${myUid}`).set("signing-in");
       const page = await browser.newPage();
       await page.goto("https://food.grab.com/th/en/");
       await page.waitForXPath('//a[contains(., "Login")]');
@@ -149,10 +152,25 @@ export const stayLoginGrabFood = functions
           },
         });
       }
-      await admin
-        .database()
-        .ref(`/GrabOTP/${functions.config().line.siriwatkuid}`)
-        .remove();
+
+      await Promise.all([
+        admin
+          .database()
+          .ref(`/GrabOTP/${functions.config().line.siriwatkuid}`)
+          .remove(),
+        admin
+          .database()
+          .ref(`/GrabFoodStatus/${functions.config().line.siriwatkuid}`)
+          .remove(),
+      ]);
+
+      const endTime = Date.now();
+      console.info(
+        "The process is done in",
+        (endTime - startTime) / 1000,
+        "seconds"
+      );
+
       response.status(200).send("Done!");
     } else {
       response.status(400).send("`ggSheetId` query param is required.");
