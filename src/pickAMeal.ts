@@ -73,7 +73,9 @@ export const pickAMeal = functions
           });
           const formattedNow = `=DATE(${now.getFullYear()}, ${
             now.getMonth() + 1
-          }, ${now.getDate()}) + TIME(${now.getHours()}, ${now.getMinutes()}, ${now.getSeconds()})`;
+          }, ${now.getDate()}) + TIME(${
+            now.getHours() + 7
+          }, ${now.getMinutes()}, ${now.getSeconds()})`;
           const nextRowIndex =
             (historySheet?.data?.[0].rowData?.length || 0) + 1;
 

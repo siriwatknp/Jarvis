@@ -148,13 +148,13 @@ export async function placeOrder(options: PlaceOrderOptions): Promise<void> {
   try {
     try {
       await page.waitForXPath(`//h6[contains(., "${options.restaurant}")]`, {
-        timeout: 3000,
+        timeout: 5000,
       });
     } catch (error) {
       // sometimes Grab cannot find the restaurant from search, try reloading (it is a bug from their side)
       await page.reload({ waitUntil: ["domcontentloaded", "networkidle0"] });
       await page.waitForXPath(`//h6[contains(., "${options.restaurant}")]`, {
-        timeout: 3000,
+        timeout: 5000,
       });
     }
     const [restaurant] = await page.$x(
@@ -173,6 +173,8 @@ export async function placeOrder(options: PlaceOrderOptions): Promise<void> {
       throw new Error(`Cannot find the restaurant`);
     }
 
+    await page.waitForTimeout(1000);
+
     // if Grab return 404, try reloading (it is a bug on their side)
     const isError = await page.evaluate(
       () => !!document.querySelector('[class*="ErrorMessageWidgetContainer"]')
@@ -182,7 +184,6 @@ export async function placeOrder(options: PlaceOrderOptions): Promise<void> {
     }
 
     // check if restaurant open
-    await page.waitForTimeout(1000);
     const closed = await page.evaluate(
       () => !!document.querySelector('[class*="openHours"] [class*="closed"]')
     );
@@ -299,7 +300,7 @@ export async function placeOrder(options: PlaceOrderOptions): Promise<void> {
     await page.evaluate(() => {
       const list = document.querySelector("ul.ant-select-dropdown-menu");
       list?.childNodes.forEach((node) => {
-        if (node && node.textContent === "6712") {
+        if (node && node.textContent === "6970") {
           (node as HTMLElement).click();
         }
       });
