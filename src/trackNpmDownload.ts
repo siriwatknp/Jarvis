@@ -12,7 +12,7 @@ const auth = new google.auth.GoogleAuth({
 });
 
 export const trackNpmDownload = functions
-  .region("asia-southeast2")
+  .region("asia-southeast1")
   .runWith({ memory: "1GB" })
   .https.onRequest(async (request, response) => {
     const { pkg, ggSheetId } = request.query as {

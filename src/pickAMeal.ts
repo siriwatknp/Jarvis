@@ -13,7 +13,7 @@ const auth = new google.auth.GoogleAuth({
 });
 
 export const pickAMeal = functions
-  .region("asia-southeast2")
+  .region("asia-southeast1")
   .runWith({ memory: "1GB", timeoutSeconds: 120 })
   .https.onRequest(async (request, response) => {
     const { headers } = request;

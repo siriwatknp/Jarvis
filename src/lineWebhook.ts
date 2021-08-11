@@ -3,7 +3,7 @@ import admin from "firebase-admin";
 import * as Line from "api/Line";
 
 export const lineWebhook = functions
-  .region("asia-southeast2")
+  .region("asia-southeast1")
   .https.onRequest(async (request) => {
     const event = request.body.events[0];
     if (event.type === "follow") {

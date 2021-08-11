@@ -66,7 +66,7 @@ async function clearDB() {
 }
 
 export const stayLoginGrabFood = functions
-  .region("asia-southeast2")
+  .region("asia-southeast1")
   .runWith({ memory: "1GB", timeoutSeconds: 180 })
   .https.onRequest(async (request, response) => {
     const myUid = functions.config().line.siriwatkuid;

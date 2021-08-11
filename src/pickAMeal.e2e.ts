@@ -11,7 +11,7 @@ const auth = new google.auth.GoogleAuth({
 });
 
 export const pickAMealE2E_mVAfm = functions
-  .region("asia-southeast2")
+  .region("asia-southeast1")
   .runWith({ memory: "1GB", timeoutSeconds: 540 }) // max 540
   .https.onRequest(async (request, response) => {
     const { headers } = request;
