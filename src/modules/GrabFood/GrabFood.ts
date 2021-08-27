@@ -195,10 +195,12 @@ export async function placeOrder(options: PlaceOrderOptions): Promise<void> {
     console.info("Finding menus...");
     await options.menus.reduce(async (previous, menu, index) => {
       await previous;
-      await page.waitForXPath(`//h3[contains(., "${menu.name}")]`, {
+      await page.waitForXPath(`//h3[normalize-space(text())="${menu.name}"]`, {
         timeout: 3000,
       });
-      const [menuHandle] = await page.$x(`//h3[contains(., "${menu.name}")]`);
+      const [menuHandle] = await page.$x(
+        `//h3[normalize-space(text())="${menu.name}"]`
+      );
       if (menuHandle) {
         if (index > 0) {
           await page.waitForTimeout(300); // Wait for the drawer to fully closed.
@@ -211,10 +213,13 @@ export async function placeOrder(options: PlaceOrderOptions): Promise<void> {
 
       // Drawer open
       try {
-        await page.waitForXPath(`//h5[contains(., "${menu.name}")]`, {
-          visible: true,
-          timeout: 3000,
-        });
+        await page.waitForXPath(
+          `//h5[normalize-space(text())="${menu.name}"]`,
+          {
+            visible: true,
+            timeout: 3000,
+          }
+        );
       } catch (error) {
         throw new Error(
           `🍽 ${menu.name} is not available or has been removed from the restaurant.`
