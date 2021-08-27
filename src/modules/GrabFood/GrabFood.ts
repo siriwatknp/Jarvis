@@ -142,7 +142,9 @@ export async function placeOrder(options: PlaceOrderOptions): Promise<void> {
     }
   );
   await page.goto(
-    `https://food.grab.com/th/en/restaurants?search=${options.restaurant}`
+    `https://food.grab.com/th/en/restaurants?search=${encodeURIComponent(
+      options.restaurant
+    )}`
   );
 
   try {
