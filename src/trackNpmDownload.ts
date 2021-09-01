@@ -346,7 +346,7 @@ export const trackNpmDownload = functions
          * Add data next column
          */
         if (nextColumnIndex) {
-          const column = COL[nextColumnIndex];
+          const column = COL[nextColumnIndex - 1];
           await sheets.spreadsheets.values.update({
             auth: authClient,
             spreadsheetId: ggSheetId,
