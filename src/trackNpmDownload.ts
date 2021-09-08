@@ -1,11 +1,9 @@
 import * as functions from "firebase-functions";
-import { launch } from "puppeteer";
 import { google } from "googleapis";
 import { COL } from "api/GoogleSheets";
+import { getNpmVersionDownload } from "modules/npm/NpmVersionDownload";
 
 const sheets = google.sheets("v4");
-
-const NPM_BASE_URL = "https://www.npmjs.com/package";
 
 const auth = new google.auth.GoogleAuth({
   scopes: "https://www.googleapis.com/auth/spreadsheets",
@@ -24,55 +22,25 @@ export const trackNpmDownload = functions
       if (!pkg) {
         throw new Error("Missing query param `pkg`");
       }
-      const browser = await launch({
-        headless: true,
-        args: ["--no-sandbox", "--disable-setuid-sandbox"],
-      });
 
-      const page = await browser.newPage();
-      await page.setViewport({ width: 1440, height: 1000 });
-
-      await page.goto(`${NPM_BASE_URL}/${pkg}`);
-
-      await page.click("#package-tab-versions");
-
-      const data = await page.evaluate(() => {
-        const headings = Array.from(document.getElementsByTagName("h3"));
-
-        let versionHistory: HTMLHeadingElement | undefined;
-        headings.forEach((node) => {
-          if (node.innerText.match(/version history/i)) {
-            versionHistory = node;
-          }
-        });
-
-        if (versionHistory) {
-          let node = versionHistory.nextElementSibling;
-          while (node && node.tagName !== "UL") {
-            node = node.nextElementSibling;
-          }
-          if (node) {
-            // node is <ul>
-            const list = Array.from(node.childNodes).filter(
-              (node) => node.firstChild && "href" in node.firstChild
-            );
-
-            return list.map((elm) => {
-              const download = (elm as Element).querySelector(
-                ".downloads"
-              )?.textContent;
-              return {
-                version: elm.firstChild?.textContent,
-                download: download ? Number(download.replace(/,/g, "")) : null,
-              };
-            });
-          }
-        }
-        return undefined;
-      });
+      const packages = pkg.split(",");
+      const result = await Promise.all(
+        packages.map((pkg) =>
+          getNpmVersionDownload(
+            pkg
+            // { headless: false }
+          )
+        )
+      );
+      const validResult = result.filter((value) => !!value) as Required<
+        typeof result
+      >;
+      const sortedData = validResult.reduce(
+        (result, curr) => [...result, ...curr.reverse()],
+        []
+      );
 
       if (ggSheetId) {
-        const sortedData = data?.slice().reverse();
         const authClient = await auth.getClient();
         const now = new Date();
         const sheetNames = {
@@ -388,8 +356,8 @@ export const trackNpmDownload = functions
         }
       }
 
-      response.send(data);
-    } catch (error) {
+      response.send(sortedData);
+    } catch (error: any) {
       response.status(400).send(error.toString());
     }
   });
