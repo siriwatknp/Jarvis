@@ -4,7 +4,11 @@ import * as Line from "api/Line";
 
 export const lineWebhook = functions
   .region("asia-southeast1")
-  .https.onRequest(async (request) => {
+  .https.onRequest(async (request, response) => {
+    if (!request.body.test) {
+      response.send("hey");
+      return;
+    }
     const event = request.body.events[0];
     if (event.type === "follow") {
       const { userId } = event.source;
