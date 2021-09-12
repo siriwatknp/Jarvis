@@ -40,10 +40,12 @@ export const buyLV = functions
       waitUntil: ["domcontentloaded", "networkidle0"],
     });
 
-    const snapshot = await admin.database().ref(`/lvProducts`).once("value");
-    let products: Array<{ name: string; url: string; enabled: boolean }> =
-      snapshot.val() || [];
-    products = products.filter(({ enabled }) => !!enabled);
+    const snapshot = await admin.database().ref(`/buyLVSettings`).once("value");
+    const { products: data, retryCount } = snapshot.val() as {
+      products: Array<{ name: string; url: string; enabled: boolean }>;
+      retryCount: number;
+    };
+    const products = data.filter(({ enabled }) => !!enabled);
 
     const pages = await Promise.all(products.map(() => browser.newPage()));
 
@@ -63,7 +65,7 @@ export const buyLV = functions
               timeout: 3000,
             });
           },
-          { interval: 50, retryCount: 5 }
+          { interval: 50, retryCount }
         );
         const lineReceivers = (
           functions.config().louisvuitton.line_receivers || ""
