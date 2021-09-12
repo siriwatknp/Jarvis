@@ -1,3 +1,4 @@
+import admin from "firebase-admin";
 import * as functions from "firebase-functions";
 import * as Line from "api/Line";
 import puppeteer from "puppeteer-extra";
@@ -6,13 +7,6 @@ import { waitFor } from "utils/waitFor";
 
 puppeteer.use(StealthPlugin());
 
-const NAMES = ["Nice Nano", "Pochette", "Mini Pochette"];
-const PRODUCTS = [
-  "https://th.louisvuitton.com/tha-th/products/nice-nano-monogram-nvprod2320034v",
-  "https://th.louisvuitton.com/tha-th/products/pochette-accessoires-monogram-005656",
-  "https://th.louisvuitton.com/tha-th/products/mini-pochette-accessoires-monogram-001025",
-  // "https://th.louisvuitton.com/tha-th/products/multiple-wallet-monogram-other-nvprod3130181v", // for in-stock testing
-];
 const LOGIN_URL = "https://secure.louisvuitton.com/tha-th/mylv/overview";
 const CART_URL = "https://secure.louisvuitton.com/tha-th/cart";
 
@@ -46,13 +40,17 @@ export const buyLV = functions
       waitUntil: ["domcontentloaded", "networkidle0"],
     });
 
-    const pages = await Promise.all(PRODUCTS.map(() => browser.newPage()));
+    const snapshot = await admin.database().ref(`/lvProducts`).once("value");
+    let products: Array<{ name: string; url: string; enabled: boolean }> =
+      snapshot.val() || [];
+    products = products.filter(({ enabled }) => !!enabled);
+
+    const pages = await Promise.all(products.map(() => browser.newPage()));
 
     await Promise.all(
       pages.map(async (page, index) => {
-        const PRODUCT_NAME = NAMES[index];
-        const PRODUCT_URL = PRODUCTS[index];
-        await page.goto(PRODUCT_URL);
+        const aProduct = products[index];
+        await page.goto(aProduct.url);
         const result = await waitFor(
           async (retry) => {
             if (retry > 0) {
@@ -83,7 +81,7 @@ export const buyLV = functions
         } else {
           await Line.sendMessage(
             lineReceivers,
-            `🛍 ${PRODUCT_NAME} in stock, SHOP NOW!\n${PRODUCT_URL}`
+            `🛍 ${aProduct.name} in stock, SHOP NOW!\n${aProduct.url}`
           );
           // await page.click("button.lv-product-purchase-button");
         }
