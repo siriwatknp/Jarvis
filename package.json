@@ -7,7 +7,7 @@
     "build:source": "yarn clean && tsc -p tsconfig.build.json",
     "build:paths": "tscpaths -p tsconfig.build.json -s ./src -o ./lib",
     "functions": "firebase emulators:start --only functions",
-    "serve": "GOOGLE_APPLICATION_CREDENTIALS=./service-account.secrets.json tsc-watch --noClear -p tsconfig.build.json --onFirstSuccess 'run-s build:paths functions' --onSuccess 'yarn build:paths'",
+    "serve": "GOOGLE_APPLICATION_CREDENTIALS=./service-account.secrets.json tsc-watch --noClear -p tsconfig.build.json --onFirstSuccess 'run-s build:paths functions' --onCompilationComplete 'yarn build:paths'",
     "serve:dev": "NODE_ENV=development yarn serve",
     "serve:production": "NODE_ENV=production yarn serve",
     "shell": "yarn run build && firebase functions:shell",
@@ -27,7 +27,9 @@
     "firebase-functions": "3.15.5",
     "googleapis": "80.1.0",
     "node-fetch": "2.6.1",
-    "puppeteer": "10.1.0"
+    "puppeteer": "10.1.0",
+    "puppeteer-extra": "3.1.18",
+    "puppeteer-extra-plugin-stealth": "2.7.8"
   },
   "devDependencies": {
     "@babel/core": "7.14.6",

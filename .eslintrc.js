@@ -35,5 +35,6 @@ module.exports = {
     "@typescript-eslint/explicit-module-boundary-types": "off",
     "require-jsdoc": "off",
     camelcase: "warn",
+    "new-cap": "off",
   },
 };

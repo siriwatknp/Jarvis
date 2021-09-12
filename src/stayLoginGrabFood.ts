@@ -4,6 +4,7 @@ import admin from "firebase-admin";
 import { launch } from "puppeteer";
 import * as Line from "api/Line";
 import { createSpreadsheetUtils } from "utils/sheets";
+import { waitFor } from "utils/waitFor";
 
 const sheets = google.sheets("v4");
 
@@ -22,34 +23,6 @@ async function getOTP(): Promise<string> {
   } else {
     return result;
   }
-}
-
-async function waitForOTP() {
-  let retry = 0;
-
-  function waitFor(interval: number) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve(undefined);
-      }, interval);
-    });
-  }
-
-  async function loop(): Promise<string> {
-    try {
-      await waitFor(3000);
-      return await getOTP();
-    } catch (error) {
-      retry += 1;
-      if (retry >= 40) {
-        return "";
-      } else {
-        return await loop();
-      }
-    }
-  }
-
-  return await loop();
 }
 
 async function clearDB() {
@@ -111,7 +84,11 @@ export const stayLoginGrabFood = functions
           [functions.config().line.siriwatkuid],
           "👋 Hello, I'm trying to login to your Grab account. Please reply with the OTP code from your registered phone number."
         );
-        const otp = await waitForOTP();
+        const otp = await waitFor(getOTP, { interval: 3000, retryCount: 40 });
+        if (!otp) {
+          await browser.close();
+          throw new Error("Does not receive any OTP");
+        }
         console.log("otp", otp);
 
         await page.type("input#otp", otp);
@@ -119,7 +96,7 @@ export const stayLoginGrabFood = functions
         const [nextBtn] = await page.$x('//button[contains(.,"Next")]');
         nextBtn.click();
 
-        await page.waitForXPath(`//p[contains(., "What's your Grab PIN?")]`);
+        await page.waitForXPath(`//p[contains(., "Enter your Grab PIN")]`);
 
         const grabPin = functions.config().grab.siriwatkpin.split("");
 
@@ -181,9 +158,9 @@ export const stayLoginGrabFood = functions
         );
 
         response.status(200).send("Done!");
-      } catch (error) {
+      } catch (error: unknown) {
         await clearDB();
-        response.status(400).send(error.message || "Unknown error");
+        response.status(400).send((error as Error)?.message || "Unknown error");
       }
     } else {
       response.status(400).send("`ggSheetId` query param is required.");
