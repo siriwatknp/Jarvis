@@ -30,7 +30,7 @@ export async function waitFor<T>(
     } catch (error) {
       // console.log("error", error);
       retry += 1;
-      if (retry >= retryCount) {
+      if (retry > retryCount) {
         if (shouldThrowError) {
           throw error;
         }

@@ -76,10 +76,12 @@ export const buyLV = functions
           } people: ${lineReceivers.join(", ")}`
         );
         if (!result) {
-          // await Line.sendMessage(
-          //   lineReceivers,
-          //   `😢 ${PRODUCT_NAME} is not available!`
-          // );
+          if (process.env.NODE_ENV === "development") {
+            await Line.sendMessage(
+              lineReceivers,
+              `😢 ${aProduct.name} is not available!`
+            );
+          }
         } else {
           await Line.sendMessage(
             lineReceivers,
