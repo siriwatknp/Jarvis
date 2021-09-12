@@ -21,9 +21,8 @@ export const buyLV = functions
   .runWith({ memory: "1GB", timeoutSeconds: 180 })
   .https.onRequest(async (request, response) => {
     const browser = await puppeteer.launch({
-      // headless: process.env.NODE_ENV !== "development",
       // @ts-expect-error typing issues https://github.com/berstend/puppeteer-extra/issues/428
-      headless: false,
+      headless: process.env.NODE_ENV !== "development",
       defaultViewport: { width: 1024, height: 600 },
     });
 
@@ -51,8 +50,9 @@ export const buyLV = functions
 
     await Promise.all(
       pages.map(async (page, index) => {
-        await page.goto(PRODUCTS[index]);
         const PRODUCT_NAME = NAMES[index];
+        const PRODUCT_URL = PRODUCTS[index];
+        await page.goto(PRODUCT_URL);
         const result = await waitFor(
           async (retry) => {
             if (retry > 0) {
@@ -76,14 +76,14 @@ export const buyLV = functions
           } people: ${lineReceivers.join(", ")}`
         );
         if (!result) {
-          await Line.sendMessage(
-            lineReceivers,
-            `😢 ${PRODUCT_NAME} is not available!`
-          );
+          // await Line.sendMessage(
+          //   lineReceivers,
+          //   `😢 ${PRODUCT_NAME} is not available!`
+          // );
         } else {
           await Line.sendMessage(
             lineReceivers,
-            `🛍 ${PRODUCT_NAME} is here, SHOP NOW!`
+            `🛍 ${PRODUCT_NAME} in stock, SHOP NOW!\n${PRODUCT_URL}`
           );
           // await page.click("button.lv-product-purchase-button");
         }
