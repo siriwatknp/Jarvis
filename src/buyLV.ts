@@ -41,9 +41,14 @@ export const buyLV = functions
     });
 
     const snapshot = await admin.database().ref(`/buyLVSettings`).once("value");
-    const { products: data, retryCount } = snapshot.val() as {
+    const {
+      products: data,
+      retryCount,
+      live,
+    } = snapshot.val() as {
       products: Array<{ name: string; url: string; enabled: boolean }>;
       retryCount: number;
+      live: boolean;
     };
     const products = data.filter(({ enabled }) => !!enabled);
     const lineReceivers = (
@@ -80,10 +85,17 @@ export const buyLV = functions
           );
         }
       } else {
-        await Line.sendMessage(
-          lineReceivers,
-          `🛍 ${aProduct.name} in stock, SHOP NOW!\n${aProduct.url}`
-        );
+        if (live) {
+          await Line.sendMessage(
+            lineReceivers,
+            `🛍 ${aProduct.name} in stock, SHOP NOW!\n${aProduct.url}`
+          );
+        } else {
+          await Line.sendMessage(
+            [functions.config().line.siriwatkuid],
+            `🛍 ${aProduct.name} in stock, SHOP NOW!\n${aProduct.url}`
+          );
+        }
         // TODO: Add to cart
         // await page.click("button.lv-product-purchase-button");
         // await page.goto(CART_URL);
