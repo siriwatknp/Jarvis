@@ -20,23 +20,23 @@ export const buyLV = functions
       defaultViewport: { width: 1024, height: 600 },
     });
 
-    const initialPage = await browser.newPage();
-    await initialPage.goto(LOGIN_URL, {
+    const page = await browser.newPage();
+    await page.goto(LOGIN_URL, {
       waitUntil: ["domcontentloaded", "networkidle0"],
     });
 
-    await initialPage.waitForSelector("input#loginloginForm");
-    await initialPage.type(
+    await page.waitForSelector("input#loginloginForm");
+    await page.type(
       "input#loginloginForm",
       functions.config().louisvuitton.username
     );
-    await initialPage.type(
+    await page.type(
       "input#passwordloginForm",
       functions.config().louisvuitton.password
     );
-    await initialPage.click("input#loginSubmit_");
+    await page.click("input#loginSubmit_");
 
-    await initialPage.waitForNavigation({
+    await page.waitForNavigation({
       waitUntil: ["domcontentloaded", "networkidle0"],
     });
 
@@ -46,56 +46,50 @@ export const buyLV = functions
       retryCount: number;
     };
     const products = data.filter(({ enabled }) => !!enabled);
+    const lineReceivers = (
+      functions.config().louisvuitton.line_receivers || ""
+    ).split(",");
 
-    const pages = await Promise.all(products.map(() => browser.newPage()));
-
-    await Promise.all(
-      pages.map(async (page, index) => {
-        const aProduct = products[index];
-        await page.goto(aProduct.url);
-        const result = await waitFor(
-          async (retry) => {
-            if (retry > 0) {
-              await page.reload({
-                waitUntil: ["domcontentloaded", "networkidle0"],
-              });
-            }
-            return page.waitForSelector(".lv-stock-indicator.-available", {
-              // button.lv-product-purchase-button:not([data-evt-action-ga='qbit_experience_back_in_stock'])
-              timeout: 3000,
+    await products.reduce(async (resolve, aProduct) => {
+      await resolve;
+      await page.goto(aProduct.url);
+      const result = await waitFor(
+        async (retry) => {
+          if (retry > 0) {
+            await page.reload({
+              waitUntil: ["domcontentloaded", "networkidle0"],
             });
-          },
-          { interval: 50, retryCount }
-        );
-        const lineReceivers = (
-          functions.config().louisvuitton.line_receivers || ""
-        ).split(",");
-        console.info(
-          `send line message to ${
-            lineReceivers.length
-          } people: ${lineReceivers.join(", ")}`
-        );
-        if (!result) {
-          if (process.env.NODE_ENV === "development") {
-            await Line.sendMessage(
-              lineReceivers,
-              `😢 ${aProduct.name} is not available!`
-            );
           }
-        } else {
+          return page.waitForSelector(".lv-stock-indicator.-available", {
+            // button.lv-product-purchase-button:not([data-evt-action-ga='qbit_experience_back_in_stock'])
+            timeout: 1000,
+          });
+        },
+        { interval: 50, retryCount }
+      );
+      console.info(
+        `send line message to ${
+          lineReceivers.length
+        } people: ${lineReceivers.join(", ")}`
+      );
+      if (!result) {
+        if (process.env.NODE_ENV === "development") {
           await Line.sendMessage(
             lineReceivers,
-            `🛍 ${aProduct.name} in stock, SHOP NOW!\n${aProduct.url}`
+            `😢 ${aProduct.name} is not available!`
           );
-          // await page.click("button.lv-product-purchase-button");
         }
-      })
-    );
-
-    await initialPage.waitForTimeout(10000);
-
-    // TODO checkout
-    // await page.goto(CART_URL);
+      } else {
+        await Line.sendMessage(
+          lineReceivers,
+          `🛍 ${aProduct.name} in stock, SHOP NOW!\n${aProduct.url}`
+        );
+        // TODO: Add to cart
+        // await page.click("button.lv-product-purchase-button");
+        // await page.goto(CART_URL);
+      }
+      return Promise.resolve();
+    }, Promise.resolve());
 
     await browser.close();
     response.send("Done.");
