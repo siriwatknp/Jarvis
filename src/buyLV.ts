@@ -14,6 +14,7 @@ export const buyLV = functions
   .region("asia-southeast1")
   .runWith({ memory: "1GB", timeoutSeconds: 180 })
   .https.onRequest(async (request, response) => {
+    const { delay = 0 } = request.query as { delay?: number };
     const { headers } = request;
     if (
       headers.authorization !==
@@ -29,6 +30,7 @@ export const buyLV = functions
     });
 
     const page = await browser.newPage();
+    await page.waitForTimeout(Number(delay) || 0);
     await page.goto(LOGIN_URL, {
       waitUntil: ["domcontentloaded", "networkidle0"],
     });
@@ -94,6 +96,7 @@ export const buyLV = functions
         }
       } else {
         if (live) {
+          await page.click(".lv-product-purchase-button.-fullwidth");
           await Line.sendMessage(
             lineReceivers,
             `🛍 ${aProduct.name} in stock, SHOP NOW!\n${aProduct.url}`
