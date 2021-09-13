@@ -17,7 +17,7 @@ export const buyLV = functions
     const { headers } = request;
     if (
       headers.authorization !==
-      `Basic ${functions.config().authorization.buyLV}`
+      `Basic ${functions.config().authorization.buylv}`
     ) {
       response.status(401).send("❌ Unauthorized!");
       return;
