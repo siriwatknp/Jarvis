@@ -42,6 +42,14 @@ export const stayLoginGrabFood = functions
   .region("asia-southeast1")
   .runWith({ memory: "1GB", timeoutSeconds: 180 })
   .https.onRequest(async (request, response) => {
+    const { headers } = request;
+    if (
+      headers.authorization !==
+      `Basic ${functions.config().authorization.staylogingrabfood}`
+    ) {
+      response.status(401).send("❌ Unauthorized!");
+      return;
+    }
     const myUid = functions.config().line.siriwatkuid;
     const { ggSheetId, sheetTitle = "Settings" } = request.query as {
       ggSheetId?: string;

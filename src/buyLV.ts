@@ -14,6 +14,14 @@ export const buyLV = functions
   .region("asia-southeast1")
   .runWith({ memory: "1GB", timeoutSeconds: 180 })
   .https.onRequest(async (request, response) => {
+    const { headers } = request;
+    if (
+      headers.authorization !==
+      `Basic ${functions.config().authorization.buyLV}`
+    ) {
+      response.status(401).send("❌ Unauthorized!");
+      return;
+    }
     const browser = await puppeteer.launch({
       // @ts-expect-error typing issues https://github.com/berstend/puppeteer-extra/issues/428
       headless: process.env.NODE_ENV !== "development",
