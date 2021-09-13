@@ -14,7 +14,8 @@
     "start": "yarn run shell",
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log",
-    "test": "jest"
+    "test": "jest",
+    "prebuild:puppeteer-extra": "npx hygen puppeteer-extra workaround"
   },
   "engines": {
     "node": "14"

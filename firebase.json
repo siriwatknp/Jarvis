@@ -2,7 +2,7 @@
   "functions": {
     "source": ".",
     "predeploy": [
-      "yarn --prefix \"$RESOURCE_DIR\" lint",
+      "yarn --prefix \"$RESOURCE_DIR\" prebuild:puppeteer-extra",
       "yarn --prefix \"$RESOURCE_DIR\" build"
     ]
   }
