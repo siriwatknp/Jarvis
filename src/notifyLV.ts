@@ -1,11 +1,26 @@
 import admin from "firebase-admin";
 import * as functions from "firebase-functions";
-import * as Line from "api/Line";
+import { Page } from "puppeteer";
 import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
+import * as Line from "api/Line";
 import { waitFor } from "utils/waitFor";
 
 puppeteer.use(StealthPlugin());
+
+async function saveScreenShot(page: Page, path: string) {
+  const imageBuffer = await page.screenshot();
+
+  const bucket = admin.storage().bucket();
+
+  // Create a file object
+  const file = bucket.file(path);
+
+  // Save the image
+  if (imageBuffer) {
+    await file.save(imageBuffer, { gzip: true });
+  }
+}
 
 export const notifyLV = functions
   .region("asia-southeast1")
@@ -60,6 +75,10 @@ export const notifyLV = functions
           });
         },
         { interval: 50, retryCount }
+      );
+      await saveScreenShot(
+        page,
+        `notify-lv/${aProduct.name}_${new Date().toTimeString()}.png`
       );
       console.info(
         `send line message to ${
