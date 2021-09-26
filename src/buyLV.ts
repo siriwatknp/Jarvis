@@ -1,6 +1,7 @@
 import admin from "firebase-admin";
 import * as functions from "firebase-functions";
 import * as Line from "api/Line";
+import { Page } from "puppeteer";
 import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { waitFor } from "utils/waitFor";
@@ -9,6 +10,20 @@ puppeteer.use(StealthPlugin());
 
 const LOGIN_URL = "https://secure.louisvuitton.com/tha-th/mylv/overview";
 const CART_URL = "https://secure.louisvuitton.com/tha-th/cart";
+
+async function saveScreenShot(page: Page, path: string) {
+  const imageBuffer = await page.screenshot();
+
+  const bucket = admin.storage().bucket();
+
+  // Create a file object
+  const file = bucket.file(path);
+
+  // Save the image
+  if (imageBuffer) {
+    await file.save(imageBuffer, { gzip: true });
+  }
+}
 
 export const buyLV = functions
   .region("asia-southeast1")
@@ -82,11 +97,7 @@ export const buyLV = functions
         },
         { interval: 50, retryCount }
       );
-      console.info(
-        `send line message to ${
-          lineReceivers.length
-        } people: ${lineReceivers.join(", ")}`
-      );
+      await saveScreenShot(page, `${aProduct.name}.png`);
       if (!result) {
         if (process.env.NODE_ENV === "development") {
           await Line.sendMessage(
