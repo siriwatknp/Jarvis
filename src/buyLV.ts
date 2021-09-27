@@ -10,6 +10,7 @@ puppeteer.use(StealthPlugin());
 
 const LOGIN_URL = "https://secure.louisvuitton.com/tha-th/mylv/overview";
 const CART_URL = "https://secure.louisvuitton.com/tha-th/cart";
+const PAYMENT_URL = "https://secure.louisvuitton.com/tha-th/checkout/payment";
 
 async function saveScreenShot(page: Page, path: string) {
   const imageBuffer = await page.screenshot();
@@ -42,6 +43,11 @@ export const buyLV = functions
       // @ts-expect-error typing issues https://github.com/berstend/puppeteer-extra/issues/428
       headless: process.env.NODE_ENV !== "development",
       defaultViewport: { width: 1024, height: 600 },
+      args: [
+        // needed to fill credit card in iframe, lol
+        "--disable-web-security",
+        "--disable-features=IsolateOrigins,site-per-process",
+      ],
     });
 
     const page = await browser.newPage();
@@ -76,13 +82,33 @@ export const buyLV = functions
       live: boolean;
     };
     const products = data.filter(({ enabled }) => !!enabled);
+    // const products = [
+    //   // local testing
+    //   {
+    //     name: "น้ำหอม SPELL ON YOU",
+    //     url: "https://th.louisvuitton.com/tha-th/products/spell-on-you-nvprod3170150v",
+    //   },
+    // ];
     const lineReceivers = (
       functions.config().louisvuitton.line_receivers || ""
     ).split(",");
 
+    async function typeInIframe(id: string, value: string) {
+      const frameHandle = await page.$(`${id.replace("#", ".")} iframe`);
+      if (frameHandle) {
+        const frame = await frameHandle?.contentFrame();
+        console.log("frame", frame);
+        if (frame) {
+          await frame.type(id, value);
+        }
+      }
+    }
+
     await products.reduce(async (resolve, aProduct) => {
       await resolve;
-      await page.goto(aProduct.url);
+      await page.goto(aProduct.url, {
+        waitUntil: ["domcontentloaded", "networkidle0"],
+      });
       const result = await waitFor(
         async (retry) => {
           if (retry > 0) {
@@ -107,7 +133,6 @@ export const buyLV = functions
         }
       } else {
         if (live) {
-          await page.click(".lv-product-purchase-button.-fullwidth");
           await Line.sendMessage(
             lineReceivers,
             `🛍 ${aProduct.name} in stock, SHOP NOW!\n${aProduct.url}`
@@ -118,9 +143,44 @@ export const buyLV = functions
             `🛍 ${aProduct.name} in stock, SHOP NOW!\n${aProduct.url}`
           );
         }
-        // TODO: Add to cart
         // await page.click("button.lv-product-purchase-button");
-        // await page.goto(CART_URL);
+
+        // await page.goto(CART_URL, {
+        //   waitUntil: ["domcontentloaded", "networkidle0"],
+        // });
+        // await Promise.all([
+        //   page.waitForNavigation(),
+        //   page.click("#proceedToCheckoutButtonTop"), // then wait for navigation
+        // ]);
+
+        // await Promise.all([
+        //   page.waitForNavigation({
+        //     waitUntil: ["domcontentloaded", "networkidle0"],
+        //   }),
+        //   page.click("#globalSubmit"),
+        // ]); // then wait for navigation
+
+        // // Enters https://secure.louisvuitton.com/tha-th/checkout/payment
+        // await typeInIframe("#encryptedCardNumber", "4242424242424242");
+        // await page.type("#creditCardHoldersName", "SIRIWAT KUNAPORN");
+        // await typeInIframe("#encryptedExpiryMonth", "07");
+        // await typeInIframe("#encryptedExpiryYear", "24");
+        // await typeInIframe("#encryptedSecurityCode", "473");
+        // await page.click("#saveCreditCard");
+        // await Promise.all([
+        //   page.waitForNavigation({
+        //     waitUntil: ["domcontentloaded", "networkidle0"],
+        //   }),
+        //   page.click("#globalSubmit"),
+        // ]); // then wait for navigation
+
+        // await page.click("#acceptTermsTop");
+        // await Promise.all([
+        //   page.waitForNavigation({
+        //     waitUntil: ["domcontentloaded", "networkidle0"],
+        //   }),
+        //   page.click("#globalSubmitTop"),
+        // ]); // then wait for navigation
       }
       return Promise.resolve();
     }, Promise.resolve());
