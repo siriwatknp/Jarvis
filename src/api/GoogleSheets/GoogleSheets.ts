@@ -21,6 +21,7 @@ const BASE_COL = [
   "S",
   "T",
   "U",
+  "V",
   "W",
   "X",
   "Y",
@@ -35,4 +36,4 @@ for (let i = 0; i < BASE_COL.length; i++) {
   }
 }
 
-export { COL };
+export { BASE_COL, COL };
